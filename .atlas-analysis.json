@@ -1,0 +1,116 @@
+{
+  "projectType": "saas",
+  "projectName": "Çukurova University Cafeteria",
+  "projectDescription": "A modern web application that displays daily cafeteria menus for Çukurova University with features like favorites, calorie tracking, and email notifications.",
+  "theme": "almond",
+  "primaryColor": "#E74C3C",
+  "lightColor": "#F39C12",
+  "darkColor": "#C0392B",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/menu-display",
+              "features/authentication",
+              "features/favorites",
+              "features/calorie-tracking",
+              "features/email-notifications",
+              "features/reactions",
+              "features/sharing"
+            ]
+          },
+          {
+            "group": "Technical Architecture",
+            "pages": [
+              "architecture/overview",
+              "architecture/data-scraping",
+              "architecture/data-structure",
+              "architecture/database-schema"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/environment-variables",
+              "deployment/database-setup",
+              "deployment/github-actions",
+              "deployment/vercel"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api/overview",
+              "api/authentication",
+              "api/menu",
+              "api/reactions",
+              "api/favorites",
+              "api/calorie-tracking",
+              "api/email-preferences",
+              "api/meal-details"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Contributing",
+            "pages": [
+              "development/setup",
+              "development/project-structure",
+              "development/components",
+              "development/hooks",
+              "development/scraping"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Daily menu display with calorie information",
+    "User authentication via Google OAuth",
+    "Favorites system with email notifications",
+    "Calorie tracking and consumption logs",
+    "Like/dislike reactions with rate limiting",
+    "Menu sharing and AI prompt generation",
+    "PWA support with offline capabilities",
+    "Automated daily menu scraping via GitHub Actions",
+    "Dark/light theme support",
+    "Responsive mobile and desktop design"
+  ],
+  "publicApiSurface": [
+    "GET /api/menu/date/:date",
+    "GET /api/meal/:id",
+    "GET /api/reactions?date=YYYY-MM-DD",
+    "POST /api/reactions",
+    "GET /api/favorites",
+    "POST /api/favorites",
+    "GET /api/email-preferences",
+    "POST /api/email-preferences",
+    "GET /api/daily-log?date=YYYY-MM-DD",
+    "POST /api/daily-log",
+    "GET /api/daily-log/all",
+    "GET /api/menu/search?q=query",
+    "POST /api/auth/[...nextauth]"
+  ]
+}
