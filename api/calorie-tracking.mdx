@@ -13,7 +13,7 @@ The calorie tracking API allows authenticated users to log meals consumed and tr
 
 Retrieve the calorie log for a specific date.
 
-```
+```http
 GET /api/daily-log?date=YYYY-MM-DD
 ```
 
@@ -147,7 +147,7 @@ data = response.json()
 
 Add or remove a meal from the daily calorie log.
 
-```
+```http
 POST /api/daily-log
 ```
 
@@ -380,7 +380,7 @@ const data = await response.json();
 
 Retrieve the user's daily calorie goal.
 
-```
+```http
 GET /api/calorie-goal
 ```
 
@@ -425,7 +425,7 @@ const data = await response.json();
 
 Update the user's daily calorie goal.
 
-```
+```http
 POST /api/calorie-goal
 ```
 
