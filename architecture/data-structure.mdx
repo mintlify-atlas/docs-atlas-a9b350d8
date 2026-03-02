@@ -1,0 +1,492 @@
+---
+title: Data structure
+description: JSON data model, file organization, and TypeScript type definitions
+---
+
+The application uses a strongly-typed JSON data structure to represent monthly menu information. All types are defined in `lib/types.ts`.
+
+## TypeScript type definitions
+
+### MenuData (Root object)
+
+The top-level structure for a month's menu data:
+
+```typescript
+export interface MenuData {
+  month: string;           // "2026-02"
+  lastUpdated: string;     // ISO timestamp
+  scrapeDate: string;      // "2026-02-19"
+  totalDays: number;       // 20
+  days: DayMenu[];         // Array of daily menus
+}
+```
+
+<AccordionGroup>
+
+<Accordion title="MenuData fields explained">
+
+| Field | Type | Description | Example |
+|-------|------|-------------|----------|
+| `month` | string | Year and month in YYYY-MM format | `"2026-02"` |
+| `lastUpdated` | string | ISO 8601 timestamp of scrape time | `"2026-02-19T04:30:00.000Z"` |
+| `scrapeDate` | string | Date when data was scraped (YYYY-MM-DD) | `"2026-02-19"` |
+| `totalDays` | number | Total number of days in the month | `20` |
+| `days` | DayMenu[] | Array of daily menu objects | See DayMenu type |
+
+</Accordion>
+
+</AccordionGroup>
+
+### DayMenu (Daily menu)
+
+Represents a single day's menu:
+
+```typescript
+export interface DayMenu {
+  ymk: number;             // 1, 2, 3...
+  date: string;            // "2026-02-03" (ISO format)
+  dayName: string;         // "Pazartesi"
+  hasData: boolean;        // true = data available, false = no data
+  meals: Meal[];           // Array of meals (empty if hasData=false)
+  totalCalories: number;   // 797
+}
+```
+
+<AccordionGroup>
+
+<Accordion title="DayMenu fields explained">
+
+| Field | Type | Description | Example |
+|-------|------|-------------|----------|
+| `ymk` | number | Yemekhane (cafeteria) system ID for the day | `123` |
+| `date` | string | ISO 8601 date (YYYY-MM-DD) | `"2026-02-03"` |
+| `dayName` | string | Turkish day name | `"Pazartesi"`, `"Salı"`, `"Çarşamba"` |
+| `hasData` | boolean | Whether menu data exists for this day | `true` or `false` |
+| `meals` | Meal[] | Array of meal objects | See Meal type |
+| `totalCalories` | number | Sum of all meal calories | `797` |
+
+**Day names:**
+- Pazartesi (Monday)
+- Salı (Tuesday)
+- Çarşamba (Wednesday)
+- Perşembe (Thursday)
+- Cuma (Friday)
+- Cumartesi (Saturday)
+- Pazar (Sunday)
+
+</Accordion>
+
+<Accordion title="When hasData is false">
+
+When the university hasn't entered menu data for a specific day:
+
+```json
+{
+  "ymk": 125,
+  "date": "2026-02-05",
+  "dayName": "Çarşamba",
+  "hasData": false,
+  "meals": [],
+  "totalCalories": 0
+}
+```
+
+The UI displays "Yemekhane yemek bilgileri girilmemiştir" (Menu data not entered).
+
+</Accordion>
+
+</AccordionGroup>
+
+### Meal (Individual meal item)
+
+Represents a single meal in the daily menu:
+
+```typescript
+export interface Meal {
+  id: string;              // "157"
+  name: string;            // "Ekşili Köfte"
+  calories: number;        // 294
+  category: MealCategory;  // "ana_yemek"
+}
+```
+
+<AccordionGroup>
+
+<Accordion title="Meal fields explained">
+
+| Field | Type | Description | Example |
+|-------|------|-------------|----------|
+| `id` | string | Unique meal ID from cafeteria system | `"157"`, `"203"` |
+| `name` | string | Turkish meal name | `"Ekşili Köfte"`, `"Pilav"` |
+| `calories` | number | Calorie count (kcal) | `294` |
+| `category` | MealCategory | Meal type/category | See MealCategory type |
+
+</Accordion>
+
+</AccordionGroup>
+
+### MealCategory (Meal types)
+
+Enumeration of meal categories:
+
+```typescript
+export type MealCategory =
+  | "ana_yemek"      // Main dish (meat, chicken, etc.)
+  | "yan_yemek"      // Side dish (rice, pasta)
+  | "corba"          // Soup
+  | "yan_urun"       // Accompaniment (yogurt, ayran, pickles, salad)
+  | "tatli"          // Dessert (sweets, fruits)
+  | "icecek";        // Beverage (e.g., şalgam)
+```
+
+<AccordionGroup>
+
+<Accordion title="Category examples">
+
+| Category | Turkish | Examples |
+|----------|---------|----------|
+| `ana_yemek` | Ana Yemek | Ekşili Köfte, Tavuk Sote, Kuru Fasulye |
+| `yan_yemek` | Yan Yemek | Pilav, Makarna, Bulgur Pilavı |
+| `corba` | Çorba | Mercimek Çorbası, Tarhana Çorbası |
+| `yan_urun` | Yan Ürün | Yoğurt, Ayran, Turşu, Salata |
+| `tatli` | Tatlı | Sütlaç, Meyve, Kek |
+| `icecek` | İçecek | Şalgam Suyu |
+
+</Accordion>
+
+</AccordionGroup>
+
+### MealDetail (Detailed meal information)
+
+Extended meal information fetched on-demand via API:
+
+```typescript
+export interface MealDetail {
+  id: string;                  // "157"
+  name: string;                // "Ekşili Köfte"
+  calories: number;            // 294
+  imageUrl: string | null;     // Photo URL or null
+  ingredients: Ingredient[];   // Ingredient list
+}
+```
+
+<AccordionGroup>
+
+<Accordion title="MealDetail usage">
+
+This type is used by the `/api/meal/[id]` endpoint, which scrapes detailed meal information from the university website when a user clicks on a meal.
+
+**Fetched via:**
+```typescript
+const response = await fetch(`/api/meal/${mealId}`);
+const mealDetail: MealDetail = await response.json();
+```
+
+**Not included in static JSON files** - only fetched when needed to reduce file size.
+
+</Accordion>
+
+</AccordionGroup>
+
+### Ingredient (Meal ingredient)
+
+```typescript
+export interface Ingredient {
+  name: string;      // "Kıyma"
+  amount: number;    // 150
+  unit: string;      // "gram"
+}
+```
+
+## Example JSON file
+
+A complete example of `menu-20260302.json`:
+
+<CodeGroup>
+
+```json Complete structure
+{
+  "month": "2026-02",
+  "lastUpdated": "2026-02-19T04:30:12.345Z",
+  "scrapeDate": "2026-02-19",
+  "totalDays": 20,
+  "days": [
+    {
+      "ymk": 123,
+      "date": "2026-02-03",
+      "dayName": "Pazartesi",
+      "hasData": true,
+      "totalCalories": 797,
+      "meals": [
+        {
+          "id": "157",
+          "name": "Ekşili Köfte",
+          "calories": 294,
+          "category": "ana_yemek"
+        },
+        {
+          "id": "203",
+          "name": "Pilav",
+          "calories": 252,
+          "category": "yan_yemek"
+        },
+        {
+          "id": "89",
+          "name": "Mercimek Çorbası",
+          "calories": 112,
+          "category": "corba"
+        },
+        {
+          "id": "45",
+          "name": "Ayran",
+          "calories": 67,
+          "category": "yan_urun"
+        },
+        {
+          "id": "178",
+          "name": "Salata",
+          "calories": 42,
+          "category": "yan_urun"
+        },
+        {
+          "id": "256",
+          "name": "Meyve",
+          "calories": 30,
+          "category": "tatli"
+        }
+      ]
+    },
+    {
+      "ymk": 124,
+      "date": "2026-02-04",
+      "dayName": "Salı",
+      "hasData": true,
+      "totalCalories": 856,
+      "meals": [
+        {
+          "id": "201",
+          "name": "Tavuk Sote",
+          "calories": 312,
+          "category": "ana_yemek"
+        },
+        {
+          "id": "88",
+          "name": "Makarna",
+          "calories": 198,
+          "category": "yan_yemek"
+        }
+      ]
+    },
+    {
+      "ymk": 125,
+      "date": "2026-02-05",
+      "dayName": "Çarşamba",
+      "hasData": false,
+      "totalCalories": 0,
+      "meals": []
+    }
+  ]
+}
+```
+
+```json Minimal structure (no data day)
+{
+  "month": "2026-02",
+  "lastUpdated": "2026-02-19T04:30:12.345Z",
+  "scrapeDate": "2026-02-19",
+  "totalDays": 1,
+  "days": [
+    {
+      "ymk": 125,
+      "date": "2026-02-05",
+      "dayName": "Çarşamba",
+      "hasData": false,
+      "totalCalories": 0,
+      "meals": []
+    }
+  ]
+}
+```
+
+</CodeGroup>
+
+## File organization
+
+### Directory structure
+
+JSON files are organized by month:
+
+```
+public/data/
+├── 2026-01/
+│   ├── menu-20260131.json
+│   ├── menu-20260130.json
+│   ├── menu-20260129.json
+│   ├── menu-20260128.json
+│   └── menu-20260127.json
+└── 2026-02/
+    ├── menu-20260219.json  ← Most recent
+    ├── menu-20260218.json
+    ├── menu-20260217.json
+    ├── menu-20260216.json
+    └── menu-20260215.json  ← Oldest (will be deleted next scrape)
+```
+
+### File naming convention
+
+Format: `menu-YYYYMMDD.json`
+
+| Component | Description | Example |
+|-----------|-------------|----------|
+| `menu-` | Prefix | `menu-` |
+| `YYYY` | Year | `2026` |
+| `MM` | Month (zero-padded) | `02` |
+| `DD` | Day (zero-padded) | `19` |
+| `.json` | Extension | `.json` |
+
+**Examples:**
+- `menu-20260302.json` - March 2, 2026
+- `menu-20260131.json` - January 31, 2026
+- `menu-20261215.json` - December 15, 2026
+
+### File retention policy
+
+<Warning>
+Only the **5 most recent** JSON files are kept per month. Older files are automatically deleted during scraping.
+</Warning>
+
+This prevents:
+- Unlimited repository growth
+- Redundant data storage
+- Slower Git operations
+
+## Data loading in Next.js
+
+The application reads JSON files using `lib/menu-loader.ts`:
+
+```typescript
+import fs from 'fs';
+import path from 'path';
+import type { MenuData } from './types';
+
+export function loadMenuData(date: string): MenuData | null {
+  const [year, month] = date.split('-');
+  const monthDir = path.join(process.cwd(), 'public', 'data', `${year}-${month}`);
+  
+  if (!fs.existsSync(monthDir)) {
+    return null;
+  }
+  
+  // Find the latest file for this month
+  const files = fs.readdirSync(monthDir)
+    .filter(f => f.endsWith('.json'))
+    .sort()
+    .reverse();
+  
+  if (files.length === 0) {
+    return null;
+  }
+  
+  const filePath = path.join(monthDir, files[0]);
+  const content = fs.readFileSync(filePath, 'utf-8');
+  return JSON.parse(content);
+}
+```
+
+## Type safety benefits
+
+TypeScript ensures type safety throughout the application:
+
+```typescript
+// ✅ Type-safe access
+const menuData: MenuData = loadMenuData('2026-02-19');
+menuData.days.forEach((day: DayMenu) => {
+  if (day.hasData) {
+    day.meals.forEach((meal: Meal) => {
+      console.log(`${meal.name}: ${meal.calories} kcal`);
+    });
+  }
+});
+
+// ❌ TypeScript error: Property 'invalidField' does not exist
+menuData.invalidField;
+
+// ❌ TypeScript error: Type 'string' is not assignable to type 'number'
+const meal: Meal = {
+  id: "123",
+  name: "Test",
+  calories: "invalid", // Error!
+  category: "ana_yemek"
+};
+```
+
+## Data validation
+
+While TypeScript provides compile-time safety, consider runtime validation with Zod:
+
+```typescript
+import { z } from 'zod';
+
+const MealSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  calories: z.number(),
+  category: z.enum(['ana_yemek', 'yan_yemek', 'corba', 'yan_urun', 'tatli', 'icecek'])
+});
+
+const DayMenuSchema = z.object({
+  ymk: z.number(),
+  date: z.string(),
+  dayName: z.string(),
+  hasData: z.boolean(),
+  meals: z.array(MealSchema),
+  totalCalories: z.number()
+});
+
+const MenuDataSchema = z.object({
+  month: z.string(),
+  lastUpdated: z.string(),
+  scrapeDate: z.string(),
+  totalDays: z.number(),
+  days: z.array(DayMenuSchema)
+});
+
+// Validate at runtime
+const parsedData = MenuDataSchema.parse(rawJsonData);
+```
+
+## Common data patterns
+
+### Finding today's menu
+
+```typescript
+const today = new Date().toISOString().split('T')[0]; // "2026-02-19"
+const menuData = loadMenuData(today);
+const todayMenu = menuData?.days.find(d => d.date === today);
+```
+
+### Calculating total calories
+
+```typescript
+const totalCalories = day.meals.reduce((sum, meal) => sum + meal.calories, 0);
+```
+
+### Filtering by category
+
+```typescript
+const mainDishes = day.meals.filter(m => m.category === 'ana_yemek');
+const soups = day.meals.filter(m => m.category === 'corba');
+const desserts = day.meals.filter(m => m.category === 'tatli');
+```
+
+### Grouping meals by category
+
+```typescript
+const mealsByCategory = day.meals.reduce((acc, meal) => {
+  if (!acc[meal.category]) {
+    acc[meal.category] = [];
+  }
+  acc[meal.category].push(meal);
+  return acc;
+}, {} as Record<MealCategory, Meal[]>);
+```

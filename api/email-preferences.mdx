@@ -1,0 +1,339 @@
+---
+title: Email preferences
+description: Manage notification settings for favorite meals
+---
+
+The email preferences API allows authenticated users to control whether they receive email notifications when their favorite meals appear on the menu.
+
+<Warning>
+  This endpoint requires authentication via Google OAuth.
+</Warning>
+
+## Get email preferences
+
+Retrieve the user's current notification preferences.
+
+```
+GET /api/email-preferences
+```
+
+### Response
+
+<ResponseField name="notifyFavorites" type="boolean">
+  Whether the user wants to receive email notifications for favorite meals
+</ResponseField>
+
+### Example request
+
+<CodeGroup>
+
+```bash cURL
+curl https://yemekhane.cu.edu.tr/api/email-preferences \
+  -H "Cookie: next-auth.session-token=..."
+```
+
+```typescript TypeScript
+const response = await fetch(
+  'https://yemekhane.cu.edu.tr/api/email-preferences',
+  {
+    credentials: 'include',
+  }
+);
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get(
+  'https://yemekhane.cu.edu.tr/api/email-preferences',
+  cookies={'next-auth.session-token': '...'}
+)
+data = response.json()
+```
+
+</CodeGroup>
+
+### Example response
+
+```json
+{
+  "notifyFavorites": true
+}
+```
+
+### Unauthenticated response
+
+```json
+{
+  "notifyFavorites": false
+}
+```
+
+### Error responses
+
+<CodeGroup>
+
+```json 500 Internal Server Error
+{
+  "error": "Internal server error"
+}
+```
+
+</CodeGroup>
+
+---
+
+## Update email preferences
+
+Update the user's notification preferences.
+
+```
+POST /api/email-preferences
+```
+
+### Request body
+
+<ParamField body="notifyFavorites" type="boolean" required>
+  Whether to receive email notifications for favorite meals
+</ParamField>
+
+### Response
+
+<ResponseField name="notifyFavorites" type="boolean">
+  The updated notification preference
+</ResponseField>
+
+### Example request
+
+<CodeGroup>
+
+```bash cURL - Enable Notifications
+curl -X POST https://yemekhane.cu.edu.tr/api/email-preferences \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{"notifyFavorites": true}'
+```
+
+```bash cURL - Disable Notifications
+curl -X POST https://yemekhane.cu.edu.tr/api/email-preferences \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{"notifyFavorites": false}'
+```
+
+```typescript TypeScript
+const response = await fetch(
+  'https://yemekhane.cu.edu.tr/api/email-preferences',
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+      notifyFavorites: true,
+    }),
+  }
+);
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+  'https://yemekhane.cu.edu.tr/api/email-preferences',
+  json={'notifyFavorites': True},
+  cookies={'next-auth.session-token': '...'}
+)
+data = response.json()
+```
+
+</CodeGroup>
+
+### Example response
+
+```json
+{
+  "notifyFavorites": true
+}
+```
+
+### Error responses
+
+<CodeGroup>
+
+```json 400 Bad Request
+{
+  "error": "notifyFavorites must be a boolean"
+}
+```
+
+```json 401 Unauthorized
+{
+  "error": "Unauthorized"
+}
+```
+
+```json 500 Internal Server Error
+{
+  "error": "Internal server error"
+}
+```
+
+```json 503 Service Unavailable
+{
+  "error": "Auth disabled"
+}
+```
+
+</CodeGroup>
+
+---
+
+## Implementation details
+
+### Database schema
+
+```sql
+CREATE TABLE email_preferences (
+  id SERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL UNIQUE REFERENCES users(id),
+  notify_favorites BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Upsert behavior
+
+The POST endpoint uses an upsert pattern:
+
+1. Checks if a preferences record exists for the user
+2. If exists, updates the `notifyFavorites` field and `updatedAt` timestamp
+3. If not exists, creates a new record with the specified preference
+
+This ensures users always have a preferences record after their first update.
+
+### Default value
+
+If a user has never set their email preferences:
+
+- GET returns `{ notifyFavorites: false }`
+- No database record exists yet
+- Record is created on first POST request
+
+### Email notification system
+
+When `notifyFavorites` is `true`, the system:
+
+1. Checks daily for new menu uploads
+2. Queries each user's favorites
+3. Matches favorites against the new menu
+4. Sends email notifications for matching meals
+5. Respects this preference flag before sending
+
+### TypeScript usage
+
+```typescript
+interface EmailPreferences {
+  notifyFavorites: boolean;
+}
+
+// Get preferences
+async function getEmailPreferences(): Promise<EmailPreferences> {
+  const response = await fetch('/api/email-preferences', {
+    credentials: 'include',
+  });
+  return response.json();
+}
+
+// Update preferences
+async function updateEmailPreferences(
+  notifyFavorites: boolean
+): Promise<EmailPreferences> {
+  const response = await fetch('/api/email-preferences', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ notifyFavorites }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to update preferences');
+  }
+  
+  return response.json();
+}
+
+// Enable notifications
+async function enableNotifications(): Promise<void> {
+  await updateEmailPreferences(true);
+}
+
+// Disable notifications
+async function disableNotifications(): Promise<void> {
+  await updateEmailPreferences(false);
+}
+```
+
+### React component example
+
+```tsx
+import { useState, useEffect } from 'react';
+
+export function EmailPreferencesToggle() {
+  const [notifyFavorites, setNotifyFavorites] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/email-preferences', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        setNotifyFavorites(data.notifyFavorites);
+        setLoading(false);
+      });
+  }, []);
+
+  const handleToggle = async () => {
+    const newValue = !notifyFavorites;
+    setNotifyFavorites(newValue);
+
+    await fetch('/api/email-preferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ notifyFavorites: newValue }),
+    });
+  };
+
+  if (loading) return <div>Loading...</div>;
+
+  return (
+    <label>
+      <input
+        type="checkbox"
+        checked={notifyFavorites}
+        onChange={handleToggle}
+      />
+      Notify me when my favorite meals are on the menu
+    </label>
+  );
+}
+```
+
+### Feature flag
+
+The email preferences feature respects the `AUTH_ENABLED` flag. When authentication is disabled:
+
+- GET returns `{ notifyFavorites: false }`
+- POST returns `{ error: "Auth disabled" }` with 503 status
+
+### Privacy considerations
+
+- Email preferences are private to each user
+- Users can opt in/out at any time
+- Default is opt-out (`false`) for privacy
+- No emails are sent without explicit opt-in

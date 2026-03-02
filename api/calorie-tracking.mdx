@@ -1,0 +1,632 @@
+---
+title: Calorie tracking
+description: Track daily calorie consumption and manage calorie goals
+---
+
+The calorie tracking API allows authenticated users to log meals consumed and track their daily calorie intake against personal goals.
+
+<Warning>
+  All calorie tracking endpoints require authentication via Google OAuth.
+</Warning>
+
+## Get daily log
+
+Retrieve the calorie log for a specific date.
+
+```
+GET /api/daily-log?date=YYYY-MM-DD
+```
+
+### Query parameters
+
+<ParamField query="date" type="string" required>
+  Date in ISO format `YYYY-MM-DD` (e.g., `2025-11-03`)
+</ParamField>
+
+### Response
+
+<ResponseField name="totalCalories" type="number">
+  Total calories consumed on this date
+</ResponseField>
+
+<ResponseField name="consumedMeals" type="ConsumedMeal[]">
+  Array of meals logged for this date
+  
+  <Expandable title="ConsumedMeal properties">
+    <ResponseField name="mealName" type="string">
+      Name of the meal (e.g., "Ekşili Köfte")
+    </ResponseField>
+    
+    <ResponseField name="calories" type="number">
+      Calorie count for this meal
+    </ResponseField>
+    
+    <ResponseField name="mealId" type="string">
+      Unique meal identifier (e.g., "157")
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example request
+
+<CodeGroup>
+
+```bash cURL
+curl "https://yemekhane.cu.edu.tr/api/daily-log?date=2025-11-03" \
+  -H "Cookie: next-auth.session-token=..."
+```
+
+```typescript TypeScript
+const response = await fetch(
+  'https://yemekhane.cu.edu.tr/api/daily-log?date=2025-11-03',
+  {
+    credentials: 'include',
+  }
+);
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get(
+  'https://yemekhane.cu.edu.tr/api/daily-log',
+  params={'date': '2025-11-03'},
+  cookies={'next-auth.session-token': '...'}
+)
+data = response.json()
+```
+
+</CodeGroup>
+
+### Example response
+
+```json
+{
+  "totalCalories": 797,
+  "consumedMeals": [
+    {
+      "mealName": "Ekşili Köfte",
+      "calories": 294,
+      "mealId": "157"
+    },
+    {
+      "mealName": "Pirinç Pilavı",
+      "calories": 210,
+      "mealId": "89"
+    },
+    {
+      "mealName": "Mercimek Çorbası",
+      "calories": 120,
+      "mealId": "45"
+    },
+    {
+      "mealName": "Ayran",
+      "calories": 50,
+      "mealId": "12"
+    },
+    {
+      "mealName": "Sütlaç",
+      "calories": 123,
+      "mealId": "78"
+    }
+  ]
+}
+```
+
+### No data response
+
+```json
+{
+  "totalCalories": 0,
+  "consumedMeals": []
+}
+```
+
+### Error responses
+
+<CodeGroup>
+
+```json 400 Bad Request
+{
+  "error": "Invalid date format. Use YYYY-MM-DD"
+}
+```
+
+```json 500 Internal Server Error
+{
+  "error": "Internal server error"
+}
+```
+
+</CodeGroup>
+
+---
+
+## Update daily log
+
+Add or remove a meal from the daily calorie log.
+
+```
+POST /api/daily-log
+```
+
+### Request body
+
+<ParamField body="date" type="string" required>
+  Date in ISO format `YYYY-MM-DD`
+</ParamField>
+
+<ParamField body="mealName" type="string" required>
+  Name of the meal to add or remove
+</ParamField>
+
+<ParamField body="calories" type="number" required>
+  Calorie count for the meal
+</ParamField>
+
+<ParamField body="mealId" type="string" required>
+  Unique meal identifier (required when `action` is `"add"`)
+</ParamField>
+
+<ParamField body="action" type="string" required>
+  Action to perform: `"add"` or `"remove"`
+</ParamField>
+
+### Response
+
+<ResponseField name="action" type="string">
+  The action that was performed (`"add"` or `"remove"`)
+</ResponseField>
+
+<ResponseField name="mealName" type="string">
+  The meal that was added or removed
+</ResponseField>
+
+<ResponseField name="totalCalories" type="number">
+  Updated total calories for the date
+</ResponseField>
+
+<ResponseField name="consumedMeals" type="ConsumedMeal[]">
+  Updated array of consumed meals
+</ResponseField>
+
+### Example request - Add meal
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://yemekhane.cu.edu.tr/api/daily-log \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{
+    "date": "2025-11-03",
+    "mealName": "Ekşili Köfte",
+    "calories": 294,
+    "mealId": "157",
+    "action": "add"
+  }'
+```
+
+```typescript TypeScript
+const response = await fetch(
+  'https://yemekhane.cu.edu.tr/api/daily-log',
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+      date: '2025-11-03',
+      mealName: 'Ekşili Köfte',
+      calories: 294,
+      mealId: '157',
+      action: 'add',
+    }),
+  }
+);
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+  'https://yemekhane.cu.edu.tr/api/daily-log',
+  json={
+    'date': '2025-11-03',
+    'mealName': 'Ekşili Köfte',
+    'calories': 294,
+    'mealId': '157',
+    'action': 'add'
+  },
+  cookies={'next-auth.session-token': '...'}
+)
+data = response.json()
+```
+
+</CodeGroup>
+
+### Example response - Add meal
+
+```json
+{
+  "action": "add",
+  "mealName": "Ekşili Köfte",
+  "totalCalories": 294,
+  "consumedMeals": [
+    {
+      "mealName": "Ekşili Köfte",
+      "calories": 294,
+      "mealId": "157"
+    }
+  ]
+}
+```
+
+### Example request - Remove meal
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://yemekhane.cu.edu.tr/api/daily-log \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{
+    "date": "2025-11-03",
+    "mealName": "Ekşili Köfte",
+    "calories": 294,
+    "action": "remove"
+  }'
+```
+
+```typescript TypeScript
+const response = await fetch(
+  'https://yemekhane.cu.edu.tr/api/daily-log',
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+      date: '2025-11-03',
+      mealName: 'Ekşili Köfte',
+      calories: 294,
+      action: 'remove',
+    }),
+  }
+);
+const data = await response.json();
+```
+
+</CodeGroup>
+
+### Example response - Remove meal
+
+```json
+{
+  "action": "remove",
+  "mealName": "Ekşili Köfte",
+  "totalCalories": 0,
+  "consumedMeals": []
+}
+```
+
+### Error responses
+
+<CodeGroup>
+
+```json 400 Bad Request - Invalid Date
+{
+  "error": "Invalid date format"
+}
+```
+
+```json 400 Bad Request - Missing Fields
+{
+  "error": "mealName and calories are required"
+}
+```
+
+```json 400 Bad Request - Missing mealId
+{
+  "error": "mealId is required for adding meals"
+}
+```
+
+```json 400 Bad Request - Invalid Action
+{
+  "error": "action must be 'add' or 'remove'"
+}
+```
+
+```json 401 Unauthorized
+{
+  "error": "Unauthorized"
+}
+```
+
+```json 404 Not Found
+{
+  "error": "Meal not found in log"
+}
+```
+
+```json 409 Conflict
+{
+  "error": "Meal already added"
+}
+```
+
+```json 500 Internal Server Error
+{
+  "error": "Internal server error"
+}
+```
+
+```json 503 Service Unavailable
+{
+  "error": "Auth disabled"
+}
+```
+
+</CodeGroup>
+
+---
+
+## Get calorie goal
+
+Retrieve the user's daily calorie goal.
+
+```
+GET /api/calorie-goal
+```
+
+### Response
+
+<ResponseField name="calorieGoal" type="number | null">
+  User's daily calorie goal, or `null` if not set
+</ResponseField>
+
+### Example request
+
+<CodeGroup>
+
+```bash cURL
+curl https://yemekhane.cu.edu.tr/api/calorie-goal \
+  -H "Cookie: next-auth.session-token=..."
+```
+
+```typescript TypeScript
+const response = await fetch(
+  'https://yemekhane.cu.edu.tr/api/calorie-goal',
+  {
+    credentials: 'include',
+  }
+);
+const data = await response.json();
+```
+
+</CodeGroup>
+
+### Example response
+
+```json
+{
+  "calorieGoal": 2000
+}
+```
+
+---
+
+## Set calorie goal
+
+Update the user's daily calorie goal.
+
+```
+POST /api/calorie-goal
+```
+
+### Request body
+
+<ParamField body="calorieGoal" type="number" required>
+  Daily calorie goal (must be a positive number)
+</ParamField>
+
+### Response
+
+<ResponseField name="calorieGoal" type="number">
+  The updated calorie goal (rounded to nearest integer)
+</ResponseField>
+
+### Example request
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://yemekhane.cu.edu.tr/api/calorie-goal \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{"calorieGoal": 2000}'
+```
+
+```typescript TypeScript
+const response = await fetch(
+  'https://yemekhane.cu.edu.tr/api/calorie-goal',
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+      calorieGoal: 2000,
+    }),
+  }
+);
+const data = await response.json();
+```
+
+</CodeGroup>
+
+### Example response
+
+```json
+{
+  "calorieGoal": 2000
+}
+```
+
+### Error responses
+
+<CodeGroup>
+
+```json 400 Bad Request
+{
+  "error": "Calorie goal must be a positive number"
+}
+```
+
+```json 401 Unauthorized
+{
+  "error": "Unauthorized"
+}
+```
+
+```json 503 Service Unavailable
+{
+  "error": "Auth disabled"
+}
+```
+
+</CodeGroup>
+
+---
+
+## Implementation details
+
+### Database schema
+
+```sql
+CREATE TABLE daily_logs (
+  id SERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  date DATE NOT NULL,
+  total_calories INTEGER DEFAULT 0,
+  consumed_meals JSONB,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, date)
+);
+
+ALTER TABLE users ADD COLUMN calorie_goal INTEGER;
+```
+
+### Auto-cleanup
+
+When all meals are removed from a daily log, the entire record is deleted from the database to keep data clean.
+
+### TypeScript usage
+
+```typescript
+interface ConsumedMeal {
+  mealName: string;
+  calories: number;
+  mealId: string;
+}
+
+interface DailyLogResponse {
+  totalCalories: number;
+  consumedMeals: ConsumedMeal[];
+}
+
+interface LogUpdateResponse extends DailyLogResponse {
+  action: 'add' | 'remove';
+  mealName: string;
+}
+
+// Get daily log
+async function getDailyLog(date: string): Promise<DailyLogResponse> {
+  const response = await fetch(
+    `/api/daily-log?date=${date}`,
+    { credentials: 'include' }
+  );
+  return response.json();
+}
+
+// Add meal to log
+async function addMealToLog(
+  date: string,
+  mealName: string,
+  calories: number,
+  mealId: string
+): Promise<LogUpdateResponse> {
+  const response = await fetch('/api/daily-log', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({
+      date,
+      mealName,
+      calories,
+      mealId,
+      action: 'add',
+    }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error);
+  }
+  
+  return response.json();
+}
+
+// Remove meal from log
+async function removeMealFromLog(
+  date: string,
+  mealName: string,
+  calories: number
+): Promise<LogUpdateResponse> {
+  const response = await fetch('/api/daily-log', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({
+      date,
+      mealName,
+      calories,
+      action: 'remove',
+    }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error);
+  }
+  
+  return response.json();
+}
+
+// Get/set calorie goal
+async function getCalorieGoal(): Promise<number | null> {
+  const response = await fetch('/api/calorie-goal', {
+    credentials: 'include',
+  });
+  const data = await response.json();
+  return data.calorieGoal;
+}
+
+async function setCalorieGoal(goal: number): Promise<number> {
+  const response = await fetch('/api/calorie-goal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ calorieGoal: goal }),
+  });
+  const data = await response.json();
+  return data.calorieGoal;
+}
+```

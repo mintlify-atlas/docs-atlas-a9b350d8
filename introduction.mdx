@@ -1,0 +1,163 @@
+---
+title: Introduction
+description: A modern, high-performance web application for viewing daily cafeteria menus at Çukurova University
+---
+
+<img
+  className="block dark:hidden"
+  src="https://github.com/user-attachments/assets/17646122-441a-4e5c-b7a3-5f8c53f013a5"
+  alt="Çukurova University Cafeteria"
+  width="300"
+/>
+<img
+  className="hidden dark:block"
+  src="https://github.com/user-attachments/assets/17646122-441a-4e5c-b7a3-5f8c53f013a5"
+  alt="Çukurova University Cafeteria"
+  width="300"
+/>
+
+# Welcome to Çukurova University Cafeteria
+
+A SaaS web application that displays daily cafeteria menus for Çukurova University. The app scrapes data from the university's official website, transforms it into structured JSON, and presents it with powerful features for students and staff.
+
+**Live Demo:** [https://cukurova.vercel.app](https://cukurova.vercel.app)
+
+## Get started
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Learn how to use the application and explore its features
+  </Card>
+  <Card
+    title="Installation"
+    icon="code"
+    href="/installation"
+  >
+    Set up the project locally for development
+  </Card>
+</CardGroup>
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Daily menu display" icon="calendar-days">
+    View cafeteria menus organized by day with calorie information for each meal
+  </Card>
+  
+  <Card title="Like/Dislike system" icon="thumbs-up">
+    Rate menus without signing in. IP-based rate limiting prevents abuse
+  </Card>
+  
+  <Card title="Google authentication" icon="google">
+    Sign in with Google using NextAuth.js v5 and JWT-based authentication
+  </Card>
+  
+  <Card title="Favorite meals" icon="heart">
+    Save your favorite meals and manage them from a dedicated page
+  </Card>
+  
+  <Card title="Email notifications" icon="envelope">
+    Receive email alerts when your favorite meals appear on the menu
+  </Card>
+  
+  <Card title="Calorie tracking" icon="chart-line">
+    Track meals you've eaten and monitor your daily calorie intake
+  </Card>
+  
+  <Card title="Meal details" icon="utensils">
+    Click any meal to view ingredients and images in a modal dialog
+  </Card>
+  
+  <Card title="Menu sharing" icon="share-nodes">
+    Generate and share menu images or create AI prompts for ChatGPT, Claude, and more
+  </Card>
+  
+  <Card title="PWA support" icon="mobile">
+    Install as a Progressive Web App with offline support via Service Worker
+  </Card>
+  
+  <Card title="Dark/Light theme" icon="moon">
+    System-adaptive theming using next-themes
+  </Card>
+  
+  <Card title="Date picker" icon="calendar">
+    Select date ranges using a calendar (bottom sheet on mobile, dialog on desktop)
+  </Card>
+  
+  <Card title="Responsive design" icon="laptop-mobile">
+    Optimized layouts for both desktop and mobile devices
+  </Card>
+</CardGroup>
+
+## Technical architecture
+
+The project follows an **Extract-Transform-Load (ETL)** data pipeline:
+
+<Steps>
+  <Step title="Data extraction (Scraping)">
+    A Node.js script (`scripts/scrape-menu.ts`) uses `cheerio` to parse the university's ASP-based website
+  </Step>
+  
+  <Step title="Data transformation (Parsing)">
+    Raw HTML is converted from `Windows-1254` to `UTF-8` using `iconv-lite`, then parsed to extract day, meal, and calorie information
+  </Step>
+  
+  <Step title="Data storage">
+    Processed data is saved as timestamped JSON files in `public/data/<YYYY-MM>/` directories. Each month folder keeps a maximum of 5 files
+  </Step>
+  
+  <Step title="Presentation">
+    The Next.js application reads these static JSON files server-side using Server Components and delivers them to the client
+  </Step>
+</Steps>
+
+## Technology stack
+
+Built with modern, production-ready technologies:
+
+**Frontend**
+- **Framework:** Next.js 16 with App Router and Server Components
+- **UI Library:** React 19
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS 4
+- **Components:** shadcn/ui + Radix UI
+- **Icons:** Lucide React
+- **Animations:** Framer Motion
+
+**Backend**
+- **Database:** NeonDB (Serverless PostgreSQL)
+- **ORM:** Drizzle ORM + Drizzle Kit
+- **Authentication:** NextAuth.js v5 (Auth.js) + Google OAuth
+- **Email:** nodemailer with Google SMTP
+
+**Features**
+- **Scraping:** cheerio, iconv-lite
+- **Image Generation:** html-to-image
+- **Calendar:** react-day-picker, date-fns
+- **Forms:** react-hook-form, zod
+- **Notifications:** sonner
+- **PWA:** @ducanh2912/next-pwa
+- **Analytics:** Vercel Analytics, Google Analytics
+
+**Package Manager:** pnpm
+
+## Automated updates
+
+<Note>
+The application uses GitHub Actions to automatically scrape menu data every day at 07:00 (UTC+3) and send email notifications for favorite meals.
+</Note>
+
+**Workflow features:**
+- Triggers daily at UTC 04:00 (Turkey time 07:00) or manually via `workflow_dispatch`
+- Runs `npm run scrape` to fetch the latest menu data
+- Commits and pushes changes to `public/data/` if new data is found
+- Executes `send-favorite-notifications.ts` to match today's meals with user favorites
+- Sends email notifications via Google SMTP when matches are found
+
+<Warning>
+GitHub Secrets required: `DATABASE_URL`, `SMTP_USER`, `SMTP_PASS`
+</Warning>

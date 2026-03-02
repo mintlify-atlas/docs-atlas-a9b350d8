@@ -1,0 +1,172 @@
+---
+title: Favorites
+description: Save favorite meals and get notified when they appear on the menu
+---
+
+The favorites feature allows users to bookmark meals they love and optionally receive email notifications when those meals appear on the menu.
+
+## Adding meals to favorites
+
+You can add meals to favorites from two locations:
+
+### From menu cards
+
+Each meal row includes a bookmark icon on the right side:
+
+<Steps>
+  <Step title="Click bookmark icon">
+    Tap the empty bookmark icon next to a meal name
+  </Step>
+  
+  <Step title="See confirmation">
+    The icon fills in and a toast message confirms: "[Meal name] favorilere eklendi"
+  </Step>
+  
+  <Step title="View in favorites page">
+    The meal is now saved and accessible from your Favorites page
+  </Step>
+</Steps>
+
+### From meal detail modal
+
+When viewing meal details, you can also add the meal to favorites using the bookmark button in the modal.
+
+<Note>
+You must be signed in to use favorites. If you're not authenticated, clicking the bookmark icon will open a sign-in prompt.
+</Note>
+
+## Removing from favorites
+
+To remove a meal from favorites:
+
+**From menu cards**: Click the filled bookmark icon. It becomes empty and shows "[Meal name] favorilerden çıkarıldı"
+
+**From favorites page**: Click the trash icon next to the meal name. The meal is removed with a confirmation toast.
+
+## Managing favorites
+
+Access your complete favorites list through:
+
+- User dropdown menu → "Favorilerim"
+- Direct navigation to `/favorilerim`
+
+### Favorites page layout
+
+The page displays:
+
+- **Back button**: Return to the menu
+- **Page title**: "Favorilerim"
+- **Email notification toggle**: Enable/disable alerts (see below)
+- **Favorites list**: All saved meals with action buttons
+
+Each favorite meal shows:
+- Meal name (title-cased)
+- Eye icon: View meal details
+- Trash icon: Remove from favorites
+
+### Empty state
+
+When you haven't added any favorites yet:
+
+```
+[Bookmark icon]
+
+Henüz favori yemeğiniz yok. 
+Hemen favori yemeğinizi ekleyin!
+
+[Menüye Dön]
+```
+
+Click "Menüye Dön" to return to the menu and start adding favorites.
+
+## Email notifications
+
+When you have at least one favorite, an email notification card appears:
+
+### Enabling notifications
+
+<Steps>
+  <Step title="Toggle the switch">
+    Turn on the "E-posta Bildirimi" toggle at the top of your favorites list
+  </Step>
+  
+  <Step title="Confirm email">
+    The card shows your email address (from your Google account)
+  </Step>
+  
+  <Step title="Receive alerts">
+    You'll now get emails when any of your favorite meals appear on the menu
+  </Step>
+</Steps>
+
+### Notification card details
+
+The email notification card displays:
+
+- **Icon**: Envelope icon indicating email feature
+- **Title**: "E-posta Bildirimi"
+- **Description**: "Favori yemeğiniz menüde olduğunda e-posta ([your-email]) ile bilgilendirilirsiniz."
+- **Toggle switch**: On/off control
+
+The toggle state persists across sessions and devices.
+
+<Tip>
+Email notifications are sent automatically when the daily menu is updated and contains one of your favorited meals.
+</Tip>
+
+## Visual feedback
+
+The app provides clear visual indicators for favorited meals:
+
+### Bookmark icon states
+
+**Unfavorited**:
+- Empty outline bookmark
+- Gray color (`text-muted-foreground/40`)
+- Hover: Turns red (`hover:text-red-400`)
+
+**Favorited**:
+- Filled bookmark
+- Red color (`text-red-500`)
+- Filled with current color
+- Hover: Darker red (`hover:text-red-600`)
+
+### Animation
+
+When toggling favorites, the bookmark icon animates:
+
+- Scale from 0.5 to 1.0
+- Fade in/out transition
+- Spring animation (stiffness: 500)
+- Duration: 150ms
+
+This smooth animation provides satisfying feedback for the user action.
+
+## Backend synchronization
+
+Favorites are stored in the database and synchronized across:
+
+- **Different devices**: Access your favorites from phone, tablet, or computer
+- **Different browsers**: Sign in anywhere to see your saved meals
+- **App updates**: Favorites persist through app updates and cache clears
+
+The app uses optimistic updates:
+1. UI updates immediately when you click
+2. Request is sent to the server in the background
+3. If the server request fails, the UI reverts and shows an error toast
+
+<Warning>
+If you sign out, your favorites are preserved on the server but won't be visible until you sign in again.
+</Warning>
+
+## Use cases
+
+Common ways students use favorites:
+
+1. **Meal planning**: Save preferred meals to quickly find when they're available
+2. **Dietary preferences**: Bookmark vegetarian or allergen-free options
+3. **Novelty tracking**: Mark meals you haven't tried yet with a plan to remove them after tasting
+4. **Alerts**: Enable notifications to never miss your favorite dish
+5. **Recommendations**: Share favorite meal names with friends
+
+The favorites feature turns browsing into a personalized experience tailored to individual preferences.

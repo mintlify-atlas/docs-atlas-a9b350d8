@@ -1,0 +1,124 @@
+---
+title: Menu display
+description: View daily cafeteria menus with calendar navigation and meal details
+---
+
+The menu display is the core feature of the application, showing daily cafeteria menus from Çukurova University with an intuitive navigation system.
+
+## Viewing daily menus
+
+Menus are displayed as cards showing all meals for a specific day. Each menu card includes:
+
+- **Day and date**: The weekday name (e.g., "Pazartesi Menüsü") and formatted date
+- **Meal list**: All meals with their names and calorie counts
+- **Total calories**: Sum of all meals with a color indicator (green < 800 kcal, orange < 1100 kcal, red >= 1100 kcal)
+- **Like/dislike buttons**: Community feedback on the menu
+
+<Note>
+Menu data may be subject to last-minute changes by the cafeteria. The app displays a disclaimer: "Yemek verileri son dakika değiştirilmiş olabilir."
+</Note>
+
+## Meal categories
+
+When a menu contains 5 meals, the first two are automatically tagged:
+
+- **Ana Yemek**: Main dish (first meal)
+- **Seçenek**: Alternative option (second meal)
+
+These badges help users quickly identify the primary meal choices for the day.
+
+## Calendar navigation
+
+The app provides multiple ways to navigate between menu dates:
+
+### Mobile navigation
+
+On mobile devices, a bottom navigation bar offers:
+
+<Steps>
+  <Step title="Arrow navigation">
+    Use left/right arrows to move between consecutive days
+  </Step>
+  
+  <Step title="Current date display">
+    See the currently selected date (e.g., "15 Mart")
+  </Step>
+  
+  <Step title="Date picker">
+    Tap "Tarih Seç" to open a calendar view and select any available date or date range
+  </Step>
+</Steps>
+
+The bottom bar also displays useful metadata:
+- **Last updated**: When the menu data was last refreshed
+- **Total days**: Number of days available in the menu
+
+### Date range selection
+
+Users can select a date range to view multiple days at once:
+
+1. Click the "Tarih Seç" button in the bottom navigation
+2. Select a start date and optionally an end date on the calendar
+3. Click "Göster" to view all menus in that range
+4. Click "İptal" to cancel and return to the previous view
+
+Disabled dates (weekends or days without menus) appear grayed out in the calendar.
+
+## Menu search
+
+Find specific meals across all available dates using the search feature:
+
+<Steps>
+  <Step title="Open search">
+    Click the search bar in the header or press `Cmd+K` (Mac) / `Ctrl+K` (Windows)
+  </Step>
+  
+  <Step title="Type meal name">
+    Enter at least 3 characters to search. The search is Turkish-aware and handles special characters (ç, ğ, ı, ö, ş, ü)
+  </Step>
+  
+  <Step title="Sort results">
+    Use the sort buttons to order results by:
+    - Date (newest first or oldest first)
+    - Alphabetical (A-Z or Z-A)
+  </Step>
+  
+  <Step title="Navigate to menu">
+    Click any search result to jump to that specific date's menu
+  </Step>
+</Steps>
+
+<Tip>
+Use keyboard shortcuts in search: `↑` `↓` to navigate, `Enter` to select, `Esc` to close.
+</Tip>
+
+## Meal details
+
+Click any meal to view detailed information:
+
+- **Meal photo**: Visual representation of the dish (if available)
+- **Calorie count**: Color-coded badge (green for low, orange for medium, red for high calories)
+- **Ingredients table**: Complete list of ingredients with amounts and units
+
+On mobile, meal details appear in a drawer that slides up from the bottom. On desktop, they display in a centered modal dialog.
+
+## Interactive elements
+
+Each meal row includes action buttons:
+
+- **Bookmark icon**: Add to favorites (see [Favorites](/features/favorites))
+- **Plus/check icon**: Track consumed meals (see [Calorie tracking](/features/calorie-tracking))
+
+Click a meal row to open the full detail modal, or click the individual buttons to perform quick actions.
+
+## Menu metadata
+
+The menu card footer displays:
+
+- **AI assistant button**: Generate menu commentary with ChatGPT, Claude, Grok, or Perplexity
+- **Total calorie indicator**: Visual dot showing calorie level (green/orange/red)
+- **Sharing options**: Share the menu as an image (see [Sharing](/features/sharing))
+
+<Warning>
+The AI assistant feature generates a pre-filled prompt and opens the selected AI service in a new tab. The AI may produce inaccurate information.
+</Warning>

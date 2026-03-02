@@ -1,0 +1,161 @@
+---
+title: API overview
+description: Introduction to the Çukurova University Cafeteria API
+---
+
+The Çukurova University Cafeteria API provides programmatic access to daily menu data, user preferences, meal tracking, and community reactions.
+
+## Base URL
+
+All API requests are made to:
+
+```
+https://yemekhane.cu.edu.tr/api
+```
+
+For local development:
+
+```
+http://localhost:3000/api
+```
+
+## Authentication
+
+The API uses NextAuth.js with Google OAuth for authentication. Most endpoints are protected and require a valid session.
+
+### Public endpoints
+
+- `GET /api/menu/date/:date` - Get menu for a specific date
+- `GET /api/menu/search` - Search all meals across all dates
+- `GET /api/reactions` - Get reaction counts for a date
+- `POST /api/reactions` - Submit reactions (rate-limited by IP)
+- `GET /api/meal/:id` - Get detailed meal information
+
+### Protected endpoints
+
+Require authentication via NextAuth.js session:
+
+- `GET /api/favorites` - Get user's favorite meals
+- `POST /api/favorites` - Add/remove favorites
+- `GET /api/daily-log` - Get calorie tracking log
+- `POST /api/daily-log` - Update calorie log
+- `GET /api/email-preferences` - Get notification preferences
+- `POST /api/email-preferences` - Update notifications
+- `GET /api/calorie-goal` - Get user's calorie goal
+- `POST /api/calorie-goal` - Set calorie goal
+
+## Response format
+
+All API responses return JSON with appropriate HTTP status codes.
+
+### Success response
+
+```json
+{
+  "found": true,
+  "day": {
+    "ymk": 1,
+    "date": "2025-11-03",
+    "dayName": "Pazartesi",
+    "hasData": true,
+    "meals": [...],
+    "totalCalories": 797
+  }
+}
+```
+
+### Error response
+
+```json
+{
+  "error": "Invalid date format. Use YYYY-MM-DD"
+}
+```
+
+## Status codes
+
+| Code | Description |
+|------|-------------|
+| 200 | Success |
+| 400 | Bad request - invalid parameters |
+| 401 | Unauthorized - authentication required |
+| 404 | Resource not found |
+| 409 | Conflict - duplicate resource |
+| 429 | Too many requests - rate limit exceeded |
+| 500 | Internal server error |
+| 503 | Service unavailable - feature disabled |
+
+## Rate limiting
+
+Public endpoints like `/api/reactions` POST are rate-limited to **10 requests per minute per IP address**.
+
+Rate limit headers are included in responses:
+
+```
+X-RateLimit-Remaining: 8
+X-RateLimit-Reset: 45
+```
+
+When rate limited, you'll receive a 429 response:
+
+```json
+{
+  "error": "Too many requests. Please wait.",
+  "resetIn": 45000
+}
+```
+
+## Caching
+
+Static menu data endpoints use Next.js ISR (Incremental Static Regeneration):
+
+- `/api/menu/date/:date` - Revalidates every 1 hour (3600s)
+- `/api/menu/search` - Revalidates every 1 hour (3600s)
+- `/api/meal/:id` - Revalidates every 24 hours (86400s)
+
+## TypeScript types
+
+The API uses strongly-typed interfaces defined in `lib/types.ts`:
+
+```typescript
+export interface DayMenu {
+  ymk: number;             // 1, 2, 3...
+  date: string;            // "2025-11-03" (ISO format)
+  dayName: string;         // "Pazartesi"
+  hasData: boolean;        // true = data available
+  meals: Meal[];           // Empty array if hasData=false
+  totalCalories: number;   // 797
+}
+
+export interface Meal {
+  id: string;              // "157"
+  name: string;            // "Ekşili Köfte"
+  calories: number;        // 294
+  category: MealCategory;  // "ana_yemek"
+}
+
+export type MealCategory =
+  | "ana_yemek"      // Main dishes
+  | "yan_yemek"      // Side dishes (rice, pasta)
+  | "corba"          // Soups
+  | "yan_urun"       // Yogurt, salad, pickles
+  | "tatli"          // Desserts, fruits
+  | "icecek";        // Beverages
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/api/authentication">
+    Learn about Google OAuth integration
+  </Card>
+  <Card title="Menu endpoints" icon="utensils" href="/api/menu">
+    Fetch daily menus and search meals
+  </Card>
+  <Card title="Reactions" icon="thumbs-up" href="/api/reactions">
+    Like/dislike system for menus
+  </Card>
+  <Card title="Calorie tracking" icon="chart-line" href="/api/calorie-tracking">
+    Track daily calorie consumption
+  </Card>
+</CardGroup>

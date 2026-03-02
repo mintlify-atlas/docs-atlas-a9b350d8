@@ -1,0 +1,308 @@
+---
+title: Vercel deployment
+description: Deploy the Çukurova University Cafeteria application to Vercel with proper configuration
+---
+
+The application is optimized for deployment on Vercel, Next.js's recommended hosting platform.
+
+## Prerequisites
+
+Before deploying, ensure you have:
+
+- A GitHub account with the repository
+- A Vercel account (sign up at [vercel.com](https://vercel.com))
+- A configured NeonDB database
+- All required environment variables ready
+
+## Initial deployment
+
+<Steps>
+  <Step title="Import project to Vercel">
+    1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
+    2. Click "Add New" → "Project"
+    3. Import your GitHub repository
+    4. Authorize Vercel to access the repository if prompted
+  </Step>
+  
+  <Step title="Configure project settings">
+    Vercel auto-detects Next.js projects. Verify these settings:
+    
+    - **Framework Preset:** Next.js
+    - **Root Directory:** `./` (project root)
+    - **Build Command:** `next build --webpack`
+    - **Output Directory:** `.next` (automatic)
+    - **Install Command:** `pnpm install`
+    
+    <Warning>
+      The application uses pnpm. Vercel automatically detects this from the `pnpm-lock.yaml` file.
+    </Warning>
+  </Step>
+  
+  <Step title="Add environment variables">
+    In the "Environment Variables" section, add all required variables:
+    
+    ```bash
+    # Database
+    DATABASE_URL=postgresql://user:password@ep-cool-smoke-123456.us-east-2.aws.neon.tech/neondb?sslmode=require
+    
+    # Authentication
+    NEXTAUTH_SECRET=your-secret-key-here
+    NEXTAUTH_URL=https://your-domain.vercel.app
+    
+    # Google OAuth
+    GOOGLE_CLIENT_ID=your-id.apps.googleusercontent.com
+    GOOGLE_CLIENT_SECRET=your-google-client-secret
+    
+    # Email (for GitHub Actions, not Vercel)
+    # SMTP_USER and SMTP_PASS are only needed for GitHub Actions
+    
+    # Analytics (optional)
+    NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
+    
+    # Feature flags
+    NEXT_PUBLIC_AUTH_ENABLED=true
+    ```
+    
+    Select which environments to apply them to:
+    - ✅ Production
+    - ✅ Preview
+    - ✅ Development (optional)
+  </Step>
+  
+  <Step title="Deploy">
+    Click "Deploy" and wait for the build to complete. This typically takes 2-3 minutes.
+    
+    Vercel will:
+    1. Clone your repository
+    2. Install dependencies with pnpm
+    3. Run the build command
+    4. Deploy to a production URL
+  </Step>
+  
+  <Step title="Verify deployment">
+    After deployment:
+    1. Click "Visit" to open your deployed application
+    2. Test key features (menu display, authentication, etc.)
+    3. Check browser console for any errors
+  </Step>
+</Steps>
+
+## Next.js configuration
+
+The application is configured in `next.config.mjs` with settings optimized for production:
+
+```javascript
+const nextConfig = {
+  output: 'standalone',
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'yemekhane.cu.edu.tr',
+        pathname: '/yemekler/**',
+      },
+    ],
+  },
+}
+```
+
+### Configuration details
+
+- **`output: 'standalone'`** - Optimizes the build for containerized deployments
+- **`typescript.ignoreBuildErrors: true`** - Allows deployment even with type errors (use CI to enforce types)
+- **`images.remotePatterns`** - Allows Next.js Image optimization for cafeteria menu images
+- **PWA configuration** - Service worker is disabled in development, enabled in production
+
+## Custom domain
+
+To add a custom domain to your Vercel deployment:
+
+<Steps>
+  <Step title="Add domain in Vercel">
+    1. Go to Project Settings → Domains
+    2. Enter your domain (e.g., `yemekhane.example.com`)
+    3. Click "Add"
+  </Step>
+  
+  <Step title="Configure DNS">
+    Vercel provides DNS configuration instructions. Add one of:
+    
+    **Option 1: CNAME record (recommended for subdomains)**
+    ```
+    Type: CNAME
+    Name: yemekhane
+    Value: cname.vercel-dns.com
+    ```
+    
+    **Option 2: A record (for apex domains)**
+    ```
+    Type: A
+    Name: @
+    Value: 76.76.21.21
+    ```
+  </Step>
+  
+  <Step title="Update NEXTAUTH_URL">
+    Update your environment variables:
+    
+    1. Go to Project Settings → Environment Variables
+    2. Edit `NEXTAUTH_URL`
+    3. Change to your custom domain: `https://yemekhane.example.com`
+    4. Redeploy the application
+    
+    <Warning>
+      Also update the callback URL in Google Cloud Console to match your new domain:
+      `https://yemekhane.example.com/api/auth/callback/google`
+    </Warning>
+  </Step>
+  
+  <Step title="Verify SSL">
+    Vercel automatically provisions SSL certificates. Wait a few minutes and verify:
+    
+    1. Visit your custom domain
+    2. Check for the padlock icon in the browser
+    3. Ensure all assets load over HTTPS
+  </Step>
+</Steps>
+
+## Automatic deployments
+
+Vercel automatically deploys your application:
+
+### Production deployments
+- **Trigger:** Push to the `main` branch
+- **URL:** Your production domain
+- **Environment:** Production environment variables
+
+### Preview deployments
+- **Trigger:** Push to any other branch or pull request
+- **URL:** Unique preview URL (e.g., `project-git-feature-team.vercel.app`)
+- **Environment:** Preview environment variables
+- **Purpose:** Test changes before merging
+
+### Deployment notifications
+
+Vercel comments on GitHub pull requests with:
+- Preview URL
+- Deployment status
+- Build logs link
+
+## Database migrations on Vercel
+
+<Warning>
+  Vercel deployments are stateless. Database migrations should be run separately, not during the build process.
+</Warning>
+
+### Recommended approach
+
+Run migrations manually before deploying:
+
+```bash
+# Set production DATABASE_URL
+export DATABASE_URL="postgresql://..."
+
+# Run migrations
+pnpm drizzle-kit migrate
+
+# Migrations are complete, Vercel will deploy on next push
+```
+
+### Alternative: Build-time migrations
+
+Add to your build script in `package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "pnpm drizzle-kit push && next build --webpack"
+  }
+}
+```
+
+<Warning>
+  Build-time migrations can cause issues with concurrent deployments and increase build time.
+</Warning>
+
+## Performance optimization
+
+### Vercel Edge Network
+
+Your application is automatically distributed across Vercel's global Edge Network for:
+- Fast page loads worldwide
+- Reduced latency
+- DDoS protection
+
+### Caching strategy
+
+The application uses Next.js caching:
+- **Static pages:** Cached at the edge
+- **API routes:** Not cached by default
+- **Images:** Optimized and cached via Next.js Image component
+
+### Progressive Web App (PWA)
+
+The PWA is automatically configured via `@ducanh2912/next-pwa`:
+- Service worker registered in production
+- Assets cached for offline access
+- Manifest file generated automatically
+
+## Monitoring and logs
+
+### View deployment logs
+
+1. Go to Vercel Dashboard → Deployments
+2. Click on a deployment
+3. View build logs and runtime logs
+
+### Runtime logs
+
+Access real-time logs:
+1. Go to Project → Logs tab
+2. Filter by deployment, function, or time
+3. Use search to find specific errors
+
+### Analytics
+
+Vercel provides built-in analytics:
+- **Speed Insights:** Real user performance metrics
+- **Web Vitals:** Core Web Vitals tracking
+- **Audience:** Visitor demographics and devices
+
+Enable in: Project Settings → Analytics
+
+## Troubleshooting
+
+### Build fails with "pnpm not found"
+
+**Solution:** Vercel auto-detects pnpm from `pnpm-lock.yaml`. Ensure the lockfile is committed.
+
+### Environment variables not working
+
+**Solution:**
+- Verify variables are added in Project Settings → Environment Variables
+- Check that `NEXT_PUBLIC_` variables are set at build time
+- Redeploy after adding new variables
+
+### Authentication callback fails
+
+**Solution:**
+- Verify `NEXTAUTH_URL` matches your domain exactly
+- Add callback URL in Google Cloud Console
+- Check `NEXTAUTH_SECRET` is set
+
+### Images not loading
+
+**Solution:**
+- Ensure `yemekhane.cu.edu.tr` is in `next.config.mjs` `remotePatterns`
+- Check that the cafeteria website is accessible
+- Verify image URLs in the menu data
+
+### Database connection fails
+
+**Solution:**
+- Verify `DATABASE_URL` is correct
+- Check that NeonDB allows connections from Vercel IP ranges (usually allowed by default)
+- Ensure `?sslmode=require` is in the connection string

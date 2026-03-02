@@ -1,0 +1,323 @@
+---
+title: Reactions
+description: Like and dislike system for daily menus
+---
+
+The reactions API allows users to express their opinion about daily menus through likes and dislikes.
+
+## Get reactions for a date
+
+Retrieve the total like and dislike counts for a specific menu date.
+
+```
+GET /api/reactions?date=YYYY-MM-DD
+```
+
+### Query parameters
+
+<ParamField query="date" type="string" required>
+  Date in ISO format `YYYY-MM-DD` (e.g., `2025-12-30`)
+</ParamField>
+
+### Response
+
+<ResponseField name="likeCount" type="number">
+  Total number of likes for the menu date (includes legacy likes)
+</ResponseField>
+
+<ResponseField name="dislikeCount" type="number">
+  Total number of dislikes for the menu date (includes legacy dislikes)
+</ResponseField>
+
+### Example request
+
+<CodeGroup>
+
+```bash cURL
+curl "https://yemekhane.cu.edu.tr/api/reactions?date=2025-12-30"
+```
+
+```typescript TypeScript
+const response = await fetch(
+  'https://yemekhane.cu.edu.tr/api/reactions?date=2025-12-30'
+);
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get(
+  'https://yemekhane.cu.edu.tr/api/reactions',
+  params={'date': '2025-12-30'}
+)
+data = response.json()
+```
+
+</CodeGroup>
+
+### Example response
+
+```json
+{
+  "likeCount": 42,
+  "dislikeCount": 8
+}
+```
+
+### No reactions response
+
+If no reactions exist for the date:
+
+```json
+{
+  "likeCount": 0,
+  "dislikeCount": 0
+}
+```
+
+### Error responses
+
+<CodeGroup>
+
+```json 400 Bad Request
+{
+  "error": "Invalid date format. Use YYYY-MM-DD"
+}
+```
+
+```json 500 Internal Server Error
+{
+  "error": "Internal server error"
+}
+```
+
+</CodeGroup>
+
+---
+
+## Submit a reaction
+
+Add, remove, or change a reaction for a menu date.
+
+```
+POST /api/reactions
+```
+
+<Warning>
+  This endpoint is rate-limited to **10 requests per minute per IP address**.
+</Warning>
+
+### Request body
+
+<ParamField body="menuDate" type="string" required>
+  Date in ISO format `YYYY-MM-DD`
+</ParamField>
+
+<ParamField body="action" type="string" required>
+  Action to perform: `like`, `dislike`, `removeLike`, or `removeDislike`
+</ParamField>
+
+### Response
+
+<ResponseField name="likeCount" type="number">
+  Updated total like count (includes legacy likes)
+</ResponseField>
+
+<ResponseField name="dislikeCount" type="number">
+  Updated total dislike count (includes legacy dislikes)
+</ResponseField>
+
+<ResponseField name="action" type="string">
+  The action that was performed
+</ResponseField>
+
+### Response headers
+
+<ResponseField name="X-RateLimit-Remaining" type="string">
+  Number of requests remaining in the current rate limit window
+</ResponseField>
+
+### Example request
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://yemekhane.cu.edu.tr/api/reactions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "menuDate": "2025-12-30",
+    "action": "like"
+  }'
+```
+
+```typescript TypeScript
+const response = await fetch(
+  'https://yemekhane.cu.edu.tr/api/reactions',
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      menuDate: '2025-12-30',
+      action: 'like',
+    }),
+  }
+);
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+  'https://yemekhane.cu.edu.tr/api/reactions',
+  json={
+    'menuDate': '2025-12-30',
+    'action': 'like'
+  }
+)
+data = response.json()
+```
+
+</CodeGroup>
+
+### Example response
+
+```json
+{
+  "likeCount": 43,
+  "dislikeCount": 8,
+  "action": "like"
+}
+```
+
+### Actions
+
+<AccordionGroup>
+  <Accordion title="like" icon="thumbs-up">
+    Increments the like count by 1 for the specified date.
+  </Accordion>
+  
+  <Accordion title="dislike" icon="thumbs-down">
+    Increments the dislike count by 1 for the specified date.
+  </Accordion>
+  
+  <Accordion title="removeLike" icon="minus">
+    Decrements the like count by 1 (minimum 0) for the specified date.
+  </Accordion>
+  
+  <Accordion title="removeDislike" icon="minus">
+    Decrements the dislike count by 1 (minimum 0) for the specified date.
+  </Accordion>
+</AccordionGroup>
+
+### Error responses
+
+<CodeGroup>
+
+```json 400 Bad Request - Invalid Date
+{
+  "error": "Invalid date format. Use YYYY-MM-DD"
+}
+```
+
+```json 400 Bad Request - Invalid Action
+{
+  "error": "Invalid action. Use like, dislike, removeLike, or removeDislike"
+}
+```
+
+```json 429 Too Many Requests
+{
+  "error": "Too many requests. Please wait.",
+  "resetIn": 45000
+}
+```
+
+```json 500 Internal Server Error
+{
+  "error": "Internal server error"
+}
+```
+
+</CodeGroup>
+
+### Rate limiting
+
+The endpoint enforces a rate limit of **10 requests per minute per IP address**.
+
+Rate limit information is included in response headers:
+
+- `X-RateLimit-Remaining` - Requests remaining in the current window
+- `X-RateLimit-Reset` - Seconds until the rate limit resets
+
+When rate limited (HTTP 429):
+
+```json
+{
+  "error": "Too many requests. Please wait.",
+  "resetIn": 45000
+}
+```
+
+The `resetIn` field indicates milliseconds until the rate limit window resets.
+
+### Implementation details
+
+- Reactions are stored in the `menuReactions` database table
+- Counts include both current and legacy reaction data
+- Decrement operations use `GREATEST(count - 1, 0)` to prevent negative values
+- Records are automatically created via upsert if they don't exist
+- IP addresses are extracted from `X-Forwarded-For` header for rate limiting
+
+### Database schema
+
+```sql
+CREATE TABLE menu_reactions (
+  id SERIAL PRIMARY KEY,
+  menu_date DATE NOT NULL UNIQUE,
+  like_count INTEGER DEFAULT 0,
+  dislike_count INTEGER DEFAULT 0,
+  legacy_like_count INTEGER,
+  legacy_dislike_count INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### TypeScript usage
+
+```typescript
+interface ReactionResponse {
+  likeCount: number;
+  dislikeCount: number;
+  action?: string;
+}
+
+// Get reactions
+async function getReactions(date: string): Promise<ReactionResponse> {
+  const response = await fetch(`/api/reactions?date=${date}`);
+  return response.json();
+}
+
+// Submit reaction
+async function submitReaction(
+  menuDate: string,
+  action: 'like' | 'dislike' | 'removeLike' | 'removeDislike'
+): Promise<ReactionResponse> {
+  const response = await fetch('/api/reactions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ menuDate, action }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to submit reaction');
+  }
+  
+  return response.json();
+}
+```

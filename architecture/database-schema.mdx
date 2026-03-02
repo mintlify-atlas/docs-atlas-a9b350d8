@@ -1,0 +1,702 @@
+---
+title: Database schema
+description: PostgreSQL schema, tables, and relationships using Drizzle ORM
+---
+
+The application uses **NeonDB** (serverless PostgreSQL) with **Drizzle ORM** for type-safe database operations. All schema definitions are in `lib/db/schema.ts`.
+
+## Database overview
+
+The schema consists of three main groups:
+
+1. **Authentication tables** - NextAuth.js user management (users, accounts, sessions, verificationTokens)
+2. **Application tables** - Core features (favorites, dailyLogs, emailPreferences)
+3. **Reaction tables** - Anonymous and authenticated reactions (menuReactions, userReactions)
+
+## Schema definition
+
+Schemas are defined using Drizzle ORM's PostgreSQL table builder:
+
+```typescript
+import {
+  pgTable,
+  text,
+  timestamp,
+  integer,
+  primaryKey,
+  jsonb,
+  date,
+  serial,
+  uniqueIndex,
+  boolean,
+} from "drizzle-orm/pg-core";
+```
+
+## Authentication tables
+
+### users
+
+Stores user account information managed by NextAuth.js:
+
+```typescript
+export const users = pgTable("users", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text("name"),
+  email: text("email").unique(),
+  emailVerified: timestamp("emailVerified", { mode: "date" }),
+  image: text("image"),
+  calorieGoal: integer("calorie_goal"),
+});
+```
+
+<AccordionGroup>
+
+<Accordion title="users table schema">
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | text | PRIMARY KEY, UUID | Unique user identifier |
+| `name` | text | nullable | User's display name from OAuth |
+| `email` | text | UNIQUE, nullable | User's email address |
+| `emailVerified` | timestamp | nullable | Email verification timestamp |
+| `image` | text | nullable | Profile picture URL |
+| `calorieGoal` | integer | nullable | User's daily calorie target |
+
+**Example row:**
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "name": "Ahmet Yılmaz",
+  "email": "ahmet@example.com",
+  "emailVerified": "2026-01-15T10:30:00Z",
+  "image": "https://lh3.googleusercontent.com/...",
+  "calorieGoal": 2000
+}
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+### accounts
+
+Stores OAuth account connections (Google):
+
+```typescript
+export const accounts = pgTable(
+  "accounts",
+  {
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type").$type<AdapterAccountType>().notNull(),
+    provider: text("provider").notNull(),
+    providerAccountId: text("providerAccountId").notNull(),
+    refresh_token: text("refresh_token"),
+    access_token: text("access_token"),
+    expires_at: integer("expires_at"),
+    token_type: text("token_type"),
+    scope: text("scope"),
+    id_token: text("id_token"),
+    session_state: text("session_state"),
+  },
+  (account) => [
+    primaryKey({
+      columns: [account.provider, account.providerAccountId],
+    }),
+  ]
+);
+```
+
+<AccordionGroup>
+
+<Accordion title="accounts table schema">
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `userId` | text | FOREIGN KEY → users.id, CASCADE | Associated user |
+| `type` | text | NOT NULL | Account type ("oauth") |
+| `provider` | text | PRIMARY KEY (composite), NOT NULL | OAuth provider ("google") |
+| `providerAccountId` | text | PRIMARY KEY (composite), NOT NULL | Google account ID |
+| `refresh_token` | text | nullable | OAuth refresh token |
+| `access_token` | text | nullable | OAuth access token |
+| `expires_at` | integer | nullable | Token expiration timestamp |
+| `token_type` | text | nullable | Token type ("Bearer") |
+| `scope` | text | nullable | OAuth scopes |
+| `id_token` | text | nullable | OpenID Connect ID token |
+| `session_state` | text | nullable | OAuth session state |
+
+**Composite primary key:** `(provider, providerAccountId)`
+
+</Accordion>
+
+</AccordionGroup>
+
+### sessions
+
+Stores active user sessions:
+
+```typescript
+export const sessions = pgTable("sessions", {
+  sessionToken: text("sessionToken").primaryKey(),
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  expires: timestamp("expires", { mode: "date" }).notNull(),
+});
+```
+
+<AccordionGroup>
+
+<Accordion title="sessions table schema">
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `sessionToken` | text | PRIMARY KEY | Unique session identifier |
+| `userId` | text | FOREIGN KEY → users.id, CASCADE, NOT NULL | Associated user |
+| `expires` | timestamp | NOT NULL | Session expiration date |
+
+</Accordion>
+
+</AccordionGroup>
+
+### verificationTokens
+
+Stores email verification tokens:
+
+```typescript
+export const verificationTokens = pgTable(
+  "verificationTokens",
+  {
+    identifier: text("identifier").notNull(),
+    token: text("token").notNull(),
+    expires: timestamp("expires", { mode: "date" }).notNull(),
+  },
+  (verificationToken) => [
+    primaryKey({
+      columns: [verificationToken.identifier, verificationToken.token],
+    }),
+  ]
+);
+```
+
+<AccordionGroup>
+
+<Accordion title="verificationTokens table schema">
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `identifier` | text | PRIMARY KEY (composite), NOT NULL | User email |
+| `token` | text | PRIMARY KEY (composite), NOT NULL | Verification token |
+| `expires` | timestamp | NOT NULL | Token expiration |
+
+**Composite primary key:** `(identifier, token)`
+
+</Accordion>
+
+</AccordionGroup>
+
+## Application tables
+
+### favorites
+
+Stores user's favorite meals for notifications:
+
+```typescript
+export const favorites = pgTable(
+  "favorites",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    mealId: text("meal_id"),
+    mealName: text("meal_name").notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("favorites_user_meal_idx").on(table.userId, table.mealName),
+  ]
+);
+```
+
+<AccordionGroup>
+
+<Accordion title="favorites table schema">
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | serial | PRIMARY KEY | Auto-increment ID |
+| `userId` | text | FOREIGN KEY → users.id, CASCADE, NOT NULL | User who favorited |
+| `mealId` | text | nullable | Meal ID from cafeteria system |
+| `mealName` | text | NOT NULL | Meal name for matching |
+| `createdAt` | timestamp | DEFAULT NOW(), NOT NULL | When favorited |
+
+**Unique index:** `(userId, mealName)` - Prevents duplicate favorites
+
+**Example row:**
+```json
+{
+  "id": 42,
+  "userId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "mealId": "157",
+  "mealName": "Ekşili Köfte",
+  "createdAt": "2026-02-15T14:30:00Z"
+}
+```
+
+</Accordion>
+
+<Accordion title="Why mealId is nullable">
+
+`mealId` is nullable because:
+
+1. **Meal IDs can change** - University system may reassign IDs
+2. **Name-based matching is more reliable** - Users recognize meals by name
+3. **Future-proofing** - If ID system changes, favorites still work
+
+The notification system matches by `mealName` when sending daily emails.
+
+</Accordion>
+
+</AccordionGroup>
+
+### emailPreferences
+
+Stores user email notification preferences:
+
+```typescript
+export const emailPreferences = pgTable(
+  "email_preferences",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    notifyFavorites: boolean("notify_favorites").default(false).notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("email_prefs_user_idx").on(table.userId),
+  ]
+);
+```
+
+<AccordionGroup>
+
+<Accordion title="emailPreferences table schema">
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | serial | PRIMARY KEY | Auto-increment ID |
+| `userId` | text | FOREIGN KEY → users.id, CASCADE, NOT NULL, UNIQUE | User ID |
+| `notifyFavorites` | boolean | DEFAULT false, NOT NULL | Enable favorite notifications |
+| `createdAt` | timestamp | DEFAULT NOW(), NOT NULL | Preference creation time |
+| `updatedAt` | timestamp | DEFAULT NOW(), NOT NULL | Last update time |
+
+**Unique index:** `(userId)` - One preference row per user
+
+**Example row:**
+```json
+{
+  "id": 7,
+  "userId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "notifyFavorites": true,
+  "createdAt": "2026-01-20T08:00:00Z",
+  "updatedAt": "2026-02-10T12:30:00Z"
+}
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+### dailyLogs
+
+Stores calorie tracking records:
+
+```typescript
+export const dailyLogs = pgTable(
+  "daily_logs",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    totalCalories: integer("total_calories").default(0).notNull(),
+    consumedMeals: jsonb("consumed_meals")
+      .$type<Array<{ mealName: string; calories: number; mealId: string }>>()
+      .default([])
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("daily_logs_user_date_idx").on(table.userId, table.date),
+  ]
+);
+```
+
+<AccordionGroup>
+
+<Accordion title="dailyLogs table schema">
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | serial | PRIMARY KEY | Auto-increment ID |
+| `userId` | text | FOREIGN KEY → users.id, CASCADE, NOT NULL | User ID |
+| `date` | date | NOT NULL | Log date (YYYY-MM-DD) |
+| `totalCalories` | integer | DEFAULT 0, NOT NULL | Sum of all consumed meal calories |
+| `consumedMeals` | jsonb | DEFAULT [], NOT NULL | Array of meal objects |
+
+**Unique index:** `(userId, date)` - One log per user per day
+
+**consumedMeals structure:**
+```typescript
+Array<{
+  mealName: string;   // "Ekşili Köfte"
+  calories: number;   // 294
+  mealId: string;     // "157"
+}>
+```
+
+**Example row:**
+```json
+{
+  "id": 123,
+  "userId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "date": "2026-02-19",
+  "totalCalories": 797,
+  "consumedMeals": [
+    {
+      "mealName": "Ekşili Köfte",
+      "calories": 294,
+      "mealId": "157"
+    },
+    {
+      "mealName": "Pilav",
+      "calories": 252,
+      "mealId": "203"
+    },
+    {
+      "mealName": "Mercimek Çorbası",
+      "calories": 112,
+      "mealId": "89"
+    },
+    {
+      "mealName": "Ayran",
+      "calories": 67,
+      "mealId": "45"
+    },
+    {
+      "mealName": "Salata",
+      "calories": 42,
+      "mealId": "178"
+    },
+    {
+      "mealName": "Meyve",
+      "calories": 30,
+      "mealId": "256"
+    }
+  ]
+}
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+## Reaction tables
+
+### menuReactions
+
+Stores anonymous like/dislike counts per menu date:
+
+```typescript
+export const menuReactions = pgTable("menu_reactions", {
+  id: serial("id").primaryKey(),
+  menuDate: text("menu_date").unique().notNull(),
+  likeCount: integer("like_count").default(0).notNull(),
+  dislikeCount: integer("dislike_count").default(0).notNull(),
+  legacyLikeCount: integer("legacy_like_count").default(0).notNull(),
+  legacyDislikeCount: integer("legacy_dislike_count").default(0).notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow(),
+});
+```
+
+<AccordionGroup>
+
+<Accordion title="menuReactions table schema">
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | serial | PRIMARY KEY | Auto-increment ID |
+| `menuDate` | text | UNIQUE, NOT NULL | Menu date (YYYY-MM-DD) |
+| `likeCount` | integer | DEFAULT 0, NOT NULL | Current like count |
+| `dislikeCount` | integer | DEFAULT 0, NOT NULL | Current dislike count |
+| `legacyLikeCount` | integer | DEFAULT 0, NOT NULL | Historical likes (pre-auth) |
+| `legacyDislikeCount` | integer | DEFAULT 0, NOT NULL | Historical dislikes (pre-auth) |
+| `createdAt` | timestamp | DEFAULT NOW() | First reaction time |
+| `updatedAt` | timestamp | DEFAULT NOW() | Last reaction time |
+
+**Example row:**
+```json
+{
+  "id": 42,
+  "menuDate": "2026-02-19",
+  "likeCount": 127,
+  "dislikeCount": 23,
+  "legacyLikeCount": 0,
+  "legacyDislikeCount": 0,
+  "createdAt": "2026-02-19T06:00:00Z",
+  "updatedAt": "2026-02-19T15:30:00Z"
+}
+```
+
+</Accordion>
+
+<Accordion title="Legacy vs current counts">
+
+**Legacy counts** (`legacyLikeCount`, `legacyDislikeCount`):
+- Historical data from before user authentication was implemented
+- Preserved for continuity but not actively updated
+
+**Current counts** (`likeCount`, `dislikeCount`):
+- Active counters for authenticated reactions
+- Can be incremented/decremented based on user actions
+
+</Accordion>
+
+</AccordionGroup>
+
+### userReactions
+
+Tracks individual user reactions:
+
+```typescript
+export const userReactions = pgTable(
+  "user_reactions",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    menuDate: text("menu_date").notNull(),
+    action: text("action").$type<"like" | "dislike">().notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("user_reactions_user_date_idx").on(table.userId, table.menuDate),
+  ]
+);
+```
+
+<AccordionGroup>
+
+<Accordion title="userReactions table schema">
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | serial | PRIMARY KEY | Auto-increment ID |
+| `userId` | text | FOREIGN KEY → users.id, CASCADE, NOT NULL | User who reacted |
+| `menuDate` | text | NOT NULL | Menu date (YYYY-MM-DD) |
+| `action` | text | NOT NULL, "like" \| "dislike" | Reaction type |
+| `createdAt` | timestamp | DEFAULT NOW(), NOT NULL | First reaction time |
+| `updatedAt` | timestamp | DEFAULT NOW(), NOT NULL | Last change time |
+
+**Unique index:** `(userId, menuDate)` - One reaction per user per menu date
+
+**Example row:**
+```json
+{
+  "id": 789,
+  "userId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "menuDate": "2026-02-19",
+  "action": "like",
+  "createdAt": "2026-02-19T08:15:00Z",
+  "updatedAt": "2026-02-19T08:15:00Z"
+}
+```
+
+</Accordion>
+
+<Accordion title="Reaction workflow">
+
+**User likes a menu:**
+1. Check if `userReactions` entry exists for user + date
+2. If exists and action is "like": Remove reaction (toggle off)
+3. If exists and action is "dislike": Change to "like", update `menuReactions` counts
+4. If not exists: Create "like" entry, increment `menuReactions.likeCount`
+
+**User dislikes a menu:**
+- Same logic, but with "dislike" action
+
+</Accordion>
+
+</AccordionGroup>
+
+## Database relationships
+
+```
+users (1) ──────< (N) accounts
+  │
+  ├──────────< (N) sessions
+  │
+  ├──────────< (N) favorites
+  │
+  ├──────────< (N) emailPreferences (1:1 via unique index)
+  │
+  ├──────────< (N) dailyLogs
+  │
+  └──────────< (N) userReactions
+
+menuReactions (no foreign keys, standalone)
+```
+
+## Common queries
+
+### Get user's favorites
+
+```typescript
+import { db } from '@/lib/db';
+import { favorites } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+
+const userFavorites = await db
+  .select()
+  .from(favorites)
+  .where(eq(favorites.userId, userId));
+```
+
+### Get daily log for specific date
+
+```typescript
+import { dailyLogs } from '@/lib/db/schema';
+import { and, eq } from 'drizzle-orm';
+
+const log = await db
+  .select()
+  .from(dailyLogs)
+  .where(
+    and(
+      eq(dailyLogs.userId, userId),
+      eq(dailyLogs.date, '2026-02-19')
+    )
+  )
+  .limit(1);
+```
+
+### Get menu reactions for date
+
+```typescript
+import { menuReactions } from '@/lib/db/schema';
+
+const reactions = await db
+  .select()
+  .from(menuReactions)
+  .where(eq(menuReactions.menuDate, '2026-02-19'))
+  .limit(1);
+```
+
+### Check if user has reacted to menu
+
+```typescript
+import { userReactions } from '@/lib/db/schema';
+
+const reaction = await db
+  .select()
+  .from(userReactions)
+  .where(
+    and(
+      eq(userReactions.userId, userId),
+      eq(userReactions.menuDate, '2026-02-19')
+    )
+  )
+  .limit(1);
+```
+
+## Database migrations
+
+The project uses Drizzle Kit for migrations:
+
+```bash
+# Generate migration files
+npx drizzle-kit generate
+
+# Push schema to database (development)
+npx drizzle-kit push
+
+# View database in Drizzle Studio
+npx drizzle-kit studio
+```
+
+Configuration in `drizzle.config.ts`:
+
+```typescript
+import { defineConfig } from 'drizzle-kit';
+
+export default defineConfig({
+  schema: './lib/db/schema.ts',
+  out: './drizzle',
+  dialect: 'postgresql',
+  dbCredentials: {
+    url: process.env.DATABASE_URL!,
+  },
+});
+```
+
+## Connection pooling
+
+NeonDB connection setup in `lib/db/index.ts`:
+
+```typescript
+import { drizzle } from 'drizzle-orm/neon-http';
+import { neon } from '@neondatabase/serverless';
+import * as schema from './schema';
+
+const sql = neon(process.env.DATABASE_URL!);
+export const db = drizzle(sql, { schema });
+```
+
+<Note>
+NeonDB uses serverless HTTP connections, which don't require connection pooling in the traditional sense. Each request creates a new HTTP connection.
+</Note>
+
+## Type-safe queries
+
+Drizzle provides full TypeScript inference:
+
+```typescript
+// ✅ Fully typed
+const user = await db
+  .select()
+  .from(users)
+  .where(eq(users.id, userId))
+  .limit(1);
+
+// user is typed as:
+// { id: string; name: string | null; email: string | null; ... }[]
+
+// ✅ Auto-complete for columns
+const favs = await db
+  .select({
+    name: favorites.mealName,
+    created: favorites.createdAt,
+  })
+  .from(favorites);
+
+// favs is typed as:
+// { name: string; created: Date }[]
+```
+
+## Performance considerations
+
+- **Indexes**: All foreign keys and frequently queried columns have indexes
+- **Unique constraints**: Prevent duplicate entries and improve query performance
+- **JSONB**: `consumedMeals` uses JSONB for efficient JSON storage and querying
+- **Cascading deletes**: User deletion automatically removes all related data
+- **Serverless**: NeonDB scales automatically with traffic

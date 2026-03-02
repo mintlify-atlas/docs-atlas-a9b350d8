@@ -1,0 +1,529 @@
+---
+title: Installation
+description: Complete guide to setting up the Çukurova University Cafeteria application locally
+---
+
+# Installation guide
+
+This guide will walk you through setting up the project locally for development.
+
+<Note>
+This is a Next.js 16 application using pnpm as the package manager. Make sure you have Node.js 18+ and pnpm installed.
+</Note>
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Node.js** 18.0 or higher
+- **pnpm** 8.0 or higher
+- **Git**
+- **PostgreSQL** database (or use NeonDB)
+
+## Clone the repository
+
+First, clone the repository to your local machine:
+
+<CodeGroup>
+
+```bash SSH
+git clone git@github.com:umutcandev/cukurova-yemekhane.git
+cd cukurova-yemekhane
+```
+
+```bash HTTPS
+git clone https://github.com/umutcandev/cukurova-yemekhane.git
+cd cukurova-yemekhane
+```
+
+</CodeGroup>
+
+## Install dependencies
+
+Install all required npm packages using pnpm:
+
+```bash
+pnpm install
+```
+
+This will install the following key dependencies:
+
+- **Next.js 16** - React framework with App Router
+- **React 19** - UI library
+- **TypeScript** - Type safety
+- **Tailwind CSS 4** - Styling
+- **Drizzle ORM** - Database ORM
+- **NextAuth.js v5** - Authentication
+- **Cheerio** - Web scraping
+- And many more (see package.json for the complete list)
+
+## Configure environment variables
+
+Create your local environment file:
+
+```bash
+cp .env.example .env.local
+```
+
+Now edit `.env.local` and configure the following variables:
+
+### Database configuration
+
+```bash .env.local
+# PostgreSQL Connection
+DATABASE_URL=postgresql://user:password@your-server:5432/cuyemekhane
+```
+
+<Note>
+You can use [NeonDB](https://console.neon.tech) for a free serverless PostgreSQL database. Get your connection URL from the NeonDB Console.
+</Note>
+
+### NextAuth.js configuration
+
+```bash .env.local
+# NextAuth.js (Auth.js)
+NEXTAUTH_SECRET=your-secret-key-here
+NEXTAUTH_URL=http://localhost:3000
+```
+
+Generate a secure `NEXTAUTH_SECRET` using:
+
+```bash
+openssl rand -base64 32
+```
+
+### Google OAuth setup
+
+<Steps>
+  <Step title="Create Google Cloud project">
+    Visit [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+  </Step>
+  
+  <Step title="Create OAuth 2.0 credentials">
+    1. Click "Create Credentials" → "OAuth client ID"
+    2. Select "Web application" as application type
+    3. Add authorized JavaScript origins: `http://localhost:3000`
+    4. Add authorized redirect URIs: `http://localhost:3000/api/auth/callback/google`
+  </Step>
+  
+  <Step title="Copy credentials to .env.local">
+    ```bash .env.local
+    GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+    GOOGLE_CLIENT_SECRET=your-google-client-secret
+    ```
+  </Step>
+</Steps>
+
+### Google SMTP configuration (Email notifications)
+
+<Steps>
+  <Step title="Enable 2-Factor Authentication">
+    Go to your Google Account security settings and enable 2FA if not already enabled
+  </Step>
+  
+  <Step title="Generate App Password">
+    1. Visit [Google Account → Security → App Passwords](https://myaccount.google.com/apppasswords)
+    2. Create a new app password for "Mail"
+    3. Copy the 16-character password
+  </Step>
+  
+  <Step title="Add to .env.local">
+    ```bash .env.local
+    SMTP_USER=your-email@gmail.com
+    SMTP_PASS=your-16-char-app-password
+    ```
+  </Step>
+</Steps>
+
+### Optional: Analytics configuration
+
+```bash .env.local
+# Google Analytics (optional)
+NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
+```
+
+Get your Measurement ID from [Google Analytics](https://analytics.google.com).
+
+<Warning>
+Variables prefixed with `NEXT_PUBLIC_` are embedded at build time and exposed to the browser.
+</Warning>
+
+### Optional: Feature flags
+
+```bash .env.local
+# Feature Flags
+NEXT_PUBLIC_AUTH_ENABLED=true
+```
+
+Set to `false` to disable the authentication system, reducing Edge Request counts.
+
+## Complete .env.local example
+
+Here's a complete example of your `.env.local` file:
+
+```bash .env.local
+# ─────────────────────────────────────────────────
+# Çukurova Yemekhane — Environment Variables
+# ─────────────────────────────────────────────────
+
+# PostgreSQL Connection (NeonDB)
+DATABASE_URL=postgresql://user:password@your-server:5432/cuyemekhane
+
+# Google Analytics
+NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX
+
+# NextAuth.js (Auth.js)
+NEXTAUTH_SECRET=your-secret-key-here
+NEXTAUTH_URL=http://localhost:3000
+
+# Google OAuth
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# Feature Flags
+NEXT_PUBLIC_AUTH_ENABLED=true
+
+# Google SMTP (Email Notifications)
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-16-char-app-password
+```
+
+## Set up the database
+
+Initialize the database schema using Drizzle Kit:
+
+```bash
+npx drizzle-kit push
+```
+
+This will create the following tables in your PostgreSQL database:
+
+- **menu_reactions** - Stores like/dislike counts for menus
+- **users** - User accounts (NextAuth.js)
+- **accounts** - OAuth account connections
+- **sessions** - Session management
+- **verificationTokens** - Email verification tokens
+- **favorites** - User's favorite meals
+- **email_preferences** - Email notification settings
+- **daily_logs** - Calorie tracking records
+- **user_reactions** - Individual user reactions to menus
+
+<Note>
+The database schema is defined in `lib/db/schema.ts` using Drizzle ORM.
+</Note>
+
+### Database schema example
+
+```typescript lib/db/schema.ts
+export const favorites = pgTable(
+  "favorites",
+  {
+    id: serial("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    mealId: text("meal_id"),
+    mealName: text("meal_name").notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("favorites_user_meal_idx").on(table.userId, table.mealName),
+  ]
+);
+```
+
+## Scrape menu data
+
+Before running the application, you need to scrape the initial menu data:
+
+```bash
+pnpm scrape
+```
+
+This command runs `scripts/scrape-menu.ts`, which:
+
+1. Scrapes the university cafeteria website using Cheerio
+2. Converts HTML from `Windows-1254` to `UTF-8` encoding
+3. Parses day, meal, and calorie information
+4. Saves data as JSON files in `public/data/<YYYY-MM>/`
+5. Keeps a maximum of 5 files per month folder
+
+<CodeGroup>
+
+```typescript scripts/scrape-menu.ts
+import { scrapeFullMonth } from '../lib/scraper.js';
+import fs from 'fs';
+import path from 'path';
+
+async function main() {
+  console.log('🚀 Scraping başlatılıyor...\n');
+
+  const menuData = await scrapeFullMonth();
+  
+  // Create month directory: public/data/2026-02/
+  const dataDir = path.join(__dirname, '..', 'public', 'data');
+  const monthDir = path.join(dataDir, menuData.month);
+
+  if (!fs.existsSync(monthDir)) {
+    fs.mkdirSync(monthDir, { recursive: true });
+  }
+
+  // Save as menu-YYYYMMDD.json
+  const scrapeDateCompact = menuData.scrapeDate.replace(/-/g, '');
+  const filename = `menu-${scrapeDateCompact}.json`;
+  const filePath = path.join(monthDir, filename);
+
+  fs.writeFileSync(filePath, JSON.stringify(menuData, null, 2), 'utf-8');
+
+  console.log('\n✅ Scraping tamamlandı!');
+}
+```
+
+```json Output Example
+{
+  "month": "2026-02",
+  "lastUpdated": "2026-02-19T10:30:00.000Z",
+  "scrapeDate": "2026-02-19",
+  "totalDays": 28,
+  "days": [
+    {
+      "ymk": 123,
+      "date": "2026-02-19",
+      "dayName": "Çarşamba",
+      "hasData": true,
+      "totalCalories": 850,
+      "meals": [
+        {
+          "id": "157",
+          "name": "Ekşili Köfte",
+          "calories": 294,
+          "category": "ana_yemek"
+        }
+      ]
+    }
+  ]
+}
+```
+
+</CodeGroup>
+
+### Menu data structure
+
+The scraped data follows this TypeScript interface:
+
+```typescript lib/types.ts
+interface MenuData {
+  month: string;          // "2026-02"
+  lastUpdated: string;    // ISO Date
+  scrapeDate: string;     // "2026-02-19"
+  totalDays: number;
+  days: DayMenu[];
+}
+
+interface DayMenu {
+  ymk: number;            // Cafeteria system ID
+  date: string;           // "2026-02-19"
+  dayName: string;        // "Çarşamba"
+  hasData: boolean;
+  totalCalories: number;
+  meals: Meal[];
+}
+
+interface Meal {
+  id: string;
+  name: string;
+  calories: number;
+  category: MealCategory;
+}
+
+type MealCategory =
+  | "ana_yemek"   // Main course
+  | "yan_yemek"   // Side dish
+  | "corba"       // Soup
+  | "yan_urun"    // Accompaniment
+  | "tatli"       // Dessert
+  | "icecek";     // Beverage
+```
+
+## Run the development server
+
+Start the Next.js development server:
+
+```bash
+pnpm dev
+```
+
+The application will be available at `http://localhost:3000`.
+
+You should see:
+
+```bash
+✓ Ready in 2.5s
+○ Compiling / ...
+✓ Compiled / in 3.2s
+```
+
+Open your browser and navigate to `http://localhost:3000` to view the application.
+
+## Project structure
+
+Understanding the project structure will help you navigate the codebase:
+
+```
+cu-yemekhane/
+├── app/                          # Next.js App Router
+│   ├── api/                      # API routes
+│   │   ├── auth/[...nextauth]/   # NextAuth.js handler
+│   │   ├── reactions/route.ts    # Like/Dislike API
+│   │   ├── favorites/route.ts    # Favorites API
+│   │   ├── email-preferences/    # Email settings API
+│   │   ├── daily-log/            # Calorie tracking API
+│   │   ├── meal/[id]/route.ts    # Meal details API
+│   │   └── menu/date/[date]/     # Menu by date API
+│   ├── favorilerim/page.tsx      # Favorites page
+│   ├── kalori-takibi/page.tsx    # Calorie tracking page
+│   ├── menu-page.tsx             # Main menu view (Client)
+│   ├── page.tsx                  # Home page (Server)
+│   └── layout.tsx                # Root layout
+├── components/                   # UI components
+│   ├── ui/                       # shadcn/ui components
+│   ├── header.tsx                # Top navigation
+│   ├── menu-card.tsx             # Daily menu card
+│   ├── like-dislike-buttons.tsx  # Reaction buttons
+│   ├── favorite-button.tsx       # Favorite toggle
+│   ├── add-meal-button.tsx       # "I ate this" button
+│   └── ...                       # More components
+├── hooks/                        # Custom React hooks
+│   ├── use-daily-log.ts          # Calorie tracking hook
+│   ├── use-favorites.ts          # Favorites hook
+│   └── ...                       # More hooks
+├── lib/                          # Utilities and business logic
+│   ├── auth.ts                   # NextAuth.js config
+│   ├── db/
+│   │   ├── index.ts              # Drizzle ORM connection
+│   │   └── schema.ts             # Database schemas
+│   ├── menu-loader.ts            # JSON file loader
+│   ├── scraper.ts                # Cheerio scraping logic
+│   ├── rate-limiter.ts           # IP-based rate limiting
+│   └── ...                       # More utilities
+├── scripts/
+│   ├── scrape-menu.ts            # Scraper CLI script
+│   └── send-favorite-notifications.ts  # Email notifications
+├── public/
+│   └── data/                     # Scraped JSON menu files
+│       └── <YYYY-MM>/            # Monthly folders
+├── middleware.ts                 # Protected routes middleware
+├── drizzle.config.ts             # Drizzle Kit config
+├── next.config.mjs               # Next.js + PWA config
+└── package.json
+```
+
+## Available scripts
+
+Here are all the npm scripts available in the project:
+
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start development server |
+| `pnpm build` | Create production build |
+| `pnpm start` | Start production server |
+| `pnpm type-check` | Run TypeScript type checking |
+| `pnpm scrape` | Scrape menu data from university website |
+| `npx tsx scripts/send-favorite-notifications.ts` | Send favorite meal email notifications |
+
+## Build for production
+
+To create a production build:
+
+```bash
+pnpm build
+```
+
+This will:
+
+1. Type-check the entire codebase
+2. Build the Next.js application with webpack
+3. Generate optimized static assets
+4. Create production-ready bundles
+
+Then start the production server:
+
+```bash
+pnpm start
+```
+
+## Deploy to Vercel
+
+The easiest way to deploy this application is using Vercel:
+
+<Steps>
+  <Step title="Connect your repository">
+    Visit [Vercel](https://vercel.com) and import your GitHub repository
+  </Step>
+  
+  <Step title="Configure environment variables">
+    Add all environment variables from `.env.local` to your Vercel project settings
+  </Step>
+  
+  <Step title="Deploy">
+    Vercel will automatically deploy your application on every push to the main branch
+  </Step>
+  
+  <Step title="Update OAuth redirect URI">
+    Update your Google OAuth credentials to include your Vercel domain:
+    ```
+    https://your-app.vercel.app/api/auth/callback/google
+    ```
+  </Step>
+</Steps>
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/umutcandev/cukurova-yemekhane)
+
+## Troubleshooting
+
+### No menu data found
+
+If you see "Veri Bulunamadı" (No data found):
+
+```bash
+pnpm scrape
+```
+
+This will create the initial menu data files.
+
+### Database connection errors
+
+Ensure your `DATABASE_URL` is correct and the database is accessible:
+
+```bash
+npx drizzle-kit push
+```
+
+### Google OAuth not working
+
+Verify:
+- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are correct
+- Authorized redirect URI includes `http://localhost:3000/api/auth/callback/google`
+- `NEXTAUTH_URL` is set to `http://localhost:3000`
+- `NEXTAUTH_SECRET` is generated using `openssl rand -base64 32`
+
+### Email notifications not sending
+
+Check:
+- `SMTP_USER` is your Gmail address
+- `SMTP_PASS` is a 16-character app password (not your regular password)
+- 2FA is enabled on your Google account
+
+## Next steps
+
+Now that you have the application running locally:
+
+1. Explore the codebase to understand the architecture
+2. Make changes and see them live with hot module replacement
+3. Add new features or customize existing ones
+4. Run the scraper periodically to keep data fresh
+5. Deploy to production when ready
+
+<Note>
+For questions or issues, please visit the [GitHub repository](https://github.com/umutcandev/cukurova-yemekhane) and open an issue.
+</Note>

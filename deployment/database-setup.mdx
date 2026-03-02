@@ -1,0 +1,195 @@
+---
+title: Database setup
+description: Set up NeonDB PostgreSQL database and run Drizzle ORM migrations
+---
+
+The Çukurova University Cafeteria application uses PostgreSQL with Drizzle ORM for database management and NextAuth.js for authentication.
+
+## Create a NeonDB database
+
+<Steps>
+  <Step title="Sign up for NeonDB">
+    Visit [NeonDB](https://neon.tech) and create a free account. Neon provides serverless PostgreSQL with generous free tier limits.
+  </Step>
+  
+  <Step title="Create a new project">
+    1. Click "Create Project" in your NeonDB dashboard
+    2. Choose a project name (e.g., "cu-yemekhane")
+    3. Select a region close to your users (e.g., US East for US-based users)
+    4. Click "Create Project"
+  </Step>
+  
+  <Step title="Get the connection string">
+    1. After project creation, you'll see the connection details
+    2. Copy the connection string that looks like:
+    
+    ```
+    postgresql://user:password@ep-cool-smoke-123456.us-east-2.aws.neon.tech/neondb?sslmode=require
+    ```
+    
+    3. Save this as your `DATABASE_URL` environment variable
+  </Step>
+</Steps>
+
+<Warning>
+  Keep your database connection string secure. Never commit it to version control.
+</Warning>
+
+## Configure Drizzle ORM
+
+The application is already configured to use Drizzle ORM. The configuration is in `drizzle.config.ts`:
+
+```typescript
+import { config } from "dotenv";
+config({ path: ".env.local" });
+import { defineConfig } from "drizzle-kit";
+
+export default defineConfig({
+    schema: "./lib/db/schema.ts",
+    out: "./drizzle",
+    dialect: "postgresql",
+    dbCredentials: {
+        url: process.env.DATABASE_URL!,
+    },
+});
+```
+
+This configuration:
+- Reads the schema from `lib/db/schema.ts`
+- Outputs migration files to `drizzle/` directory
+- Uses PostgreSQL dialect
+- Connects using `DATABASE_URL` from `.env.local`
+
+## Database schema
+
+The application includes the following tables:
+
+### Authentication tables (NextAuth.js)
+- `users` - User accounts with profile information and calorie goals
+- `accounts` - OAuth provider account links
+- `sessions` - Active user sessions
+- `verificationTokens` - Email verification tokens
+
+### Application tables
+- `menu_reactions` - Like/dislike counts for daily menus
+- `user_reactions` - Individual user reactions to menus
+- `favorites` - User's favorite meals
+- `email_preferences` - Email notification preferences
+- `daily_logs` - Daily calorie tracking logs
+
+## Generate and run migrations
+
+<Steps>
+  <Step title="Install dependencies">
+    Make sure all dependencies are installed:
+    
+    ```bash
+    pnpm install
+    ```
+  </Step>
+  
+  <Step title="Set up environment variables">
+    Create `.env.local` and add your `DATABASE_URL`:
+    
+    ```bash
+    DATABASE_URL=postgresql://user:password@ep-cool-smoke-123456.us-east-2.aws.neon.tech/neondb?sslmode=require
+    ```
+  </Step>
+  
+  <Step title="Generate migration files">
+    Generate SQL migration files from your Drizzle schema:
+    
+    ```bash
+    pnpm drizzle-kit generate
+    ```
+    
+    This creates migration files in the `drizzle/` directory based on your schema in `lib/db/schema.ts`.
+  </Step>
+  
+  <Step title="Run migrations">
+    Apply the migrations to your database:
+    
+    ```bash
+    pnpm drizzle-kit migrate
+    ```
+    
+    Alternatively, you can push the schema directly without generating migrations (useful for development):
+    
+    ```bash
+    pnpm drizzle-kit push
+    ```
+  </Step>
+  
+  <Step title="Verify the database">
+    You can open Drizzle Studio to inspect your database:
+    
+    ```bash
+    pnpm drizzle-kit studio
+    ```
+    
+    This opens a web interface at `https://local.drizzle.studio` where you can view and edit your database tables.
+  </Step>
+</Steps>
+
+## Production deployment
+
+For production (Vercel), migrations should be run automatically:
+
+### Option 1: Run migrations in build step
+
+Add a migration script to your `package.json`:
+
+```json
+{
+  "scripts": {
+    "build": "pnpm drizzle-kit migrate && next build --webpack"
+  }
+}
+```
+
+<Warning>
+  This approach runs migrations on every build, which can cause issues with parallel deployments.
+</Warning>
+
+### Option 2: Manual migration
+
+Run migrations manually before deploying:
+
+```bash
+# Set production DATABASE_URL
+export DATABASE_URL="postgresql://..."
+
+# Run migrations
+pnpm drizzle-kit migrate
+
+# Deploy to Vercel
+vercel --prod
+```
+
+### Option 3: Use Drizzle Studio
+
+1. Connect to your production database using Drizzle Studio
+2. Apply migrations through the UI
+
+## Database maintenance
+
+### Backup
+
+NeonDB automatically creates backups. You can also manually export data:
+
+```bash
+pg_dump $DATABASE_URL > backup.sql
+```
+
+### Reset database
+
+To reset your database schema (development only):
+
+```bash
+pnpm drizzle-kit drop
+pnpm drizzle-kit push
+```
+
+<Warning>
+  Never run `drizzle-kit drop` in production. This will delete all tables and data.
+</Warning>

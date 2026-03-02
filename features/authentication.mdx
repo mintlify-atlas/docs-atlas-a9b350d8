@@ -1,0 +1,112 @@
+---
+title: Authentication
+description: Sign in with Google OAuth to unlock personalized features
+---
+
+Authentication enables user-specific features like favorites, calorie tracking, and email notifications. The app uses Google OAuth for secure, password-free sign-in.
+
+## Sign-in flow
+
+When authentication is enabled, users can sign in using their Google account:
+
+<Steps>
+  <Step title="Open sign-in dialog">
+    Click the "Giriş Yap" button in the header
+  </Step>
+  
+  <Step title="Choose Google sign-in">
+    In the dialog, click "Google ile Giriş Yap"
+  </Step>
+  
+  <Step title="Authorize with Google">
+    Complete the OAuth flow in the Google popup window
+  </Step>
+  
+  <Step title="Return to app">
+    After authorization, you'll be redirected back with an active session
+  </Step>
+</Steps>
+
+On mobile devices, the sign-in dialog appears as a drawer sliding up from the bottom. On desktop, it displays as a centered modal.
+
+## Authentication prompts
+
+When you try to use features that require authentication without being signed in, context-aware prompts explain the benefit:
+
+- **Favorites**: "Favori yemeklerinizi kaydedin, menüde çıktığında haberdar olun! Giriş yaparak bu özelliği kullanabilirsiniz."
+- **Calorie tracking**: "Yediğiniz yemekleri işaretleyin, günlük kalori alımınızı kolayca takip edin! Giriş yaparak bu özelliği kullanabilirsiniz."
+
+These prompts open a sign-in drawer with a clear explanation of why authentication is needed.
+
+## User session
+
+Once signed in, your session persists across page reloads. The header displays:
+
+- **User avatar**: Your Google profile picture in a circular button
+- **Dropdown menu**: Access to personalized features and sign-out option
+
+### Dropdown menu options
+
+Click your avatar to access:
+
+- **Favorilerim**: View and manage favorite meals
+- **Kalori Takibi**: Access calorie tracking dashboard
+- **Çıkış Yap**: Sign out and end your session
+
+The dropdown also shows your name and email address at the top for quick identification.
+
+## Session states
+
+The app handles three authentication states:
+
+### Loading
+
+While checking your session status, a skeleton placeholder appears in place of the sign-in button:
+```
+[  Loading...  ]
+```
+
+### Unauthenticated
+
+When not signed in, a prominent "Giriş Yap" button appears in the header. This button has a default variant to encourage sign-in.
+
+### Authenticated
+
+When signed in, your avatar replaces the sign-in button. The avatar displays:
+- Your profile picture (from Google)
+- A fallback initial if the image fails to load
+- A colored background gradient for visual interest
+
+## Feature flag: Disabled state
+
+When authentication is temporarily disabled (via feature flag), the sign-in button appears dimmed with reduced opacity:
+
+- Button text: "Giriş Yap" (grayed out)
+- Clicking shows a dialog with "Devre Dışı" badge
+- Message: "Giriş sistemi geçici olarak devre dışıdır"
+- Sign-in button is disabled and non-functional
+
+<Note>
+This allows the site to operate without authentication during maintenance while still showing the UI elements.
+</Note>
+
+## Security considerations
+
+The authentication system uses NextAuth.js with Google OAuth:
+
+- **No passwords**: Users never create or manage passwords
+- **Secure tokens**: Session tokens are httpOnly and secure
+- **User privacy**: Only basic profile information (name, email, picture) is requested
+- **Revocable access**: Users can revoke app access anytime through Google Account settings
+
+## Benefits of signing in
+
+Authentication unlocks several personalized features:
+
+1. **Favorites**: Save meals and get email alerts when they appear
+2. **Calorie tracking**: Log consumed meals and track daily intake
+3. **Calorie goals**: Set and monitor personal calorie targets
+4. **Email notifications**: Receive alerts when favorite meals are on the menu
+5. **Cross-device sync**: Access your data from any device
+
+All features gracefully degrade when not authenticated, with clear prompts to sign in when needed.

@@ -1,0 +1,238 @@
+---
+title: Calorie tracking
+description: Track daily calorie intake by logging consumed meals
+---
+
+The calorie tracking feature allows users to log meals they've eaten and monitor their daily calorie consumption with visual charts and goal tracking.
+
+## Logging consumed meals
+
+Mark meals as consumed directly from the menu:
+
+<Steps>
+  <Step title="Find the meal">
+    Locate the meal you ate on the daily menu
+  </Step>
+  
+  <Step title="Click the plus icon">
+    Click the circle-plus icon on the right side of the meal row
+  </Step>
+  
+  <Step title="Set calorie goal (first time)">
+    If this is your first tracked meal, you'll be prompted to set a daily calorie goal
+  </Step>
+  
+  <Step title="Confirm addition">
+    A toast confirms: "[Meal name] ([calories] kcal) günlüğünüze eklendi"
+  </Step>
+</Steps>
+
+The plus icon transforms into a checkmark to indicate the meal is logged.
+
+<Warning>
+You can only log meals for today or past dates. Future dates are blocked with an error: "Henüz günü gelmemiş bir yemeği ekleyemezsiniz."
+</Warning>
+
+## Removing logged meals
+
+To remove a meal from your log:
+
+**From menu**: Click the check icon (filled circle) next to a logged meal. It reverts to a plus icon with the toast "[Meal name] günlükten çıkarıldı."
+
+**From calorie tracking page**: Click the trash icon next to the meal in the consumed meals list.
+
+## Calorie tracking dashboard
+
+Access the full tracking interface through:
+
+- User dropdown → "Kalori Takibi"
+- Direct navigation to `/kalori-takibi`
+
+### Dashboard layout
+
+The dashboard consists of:
+
+1. **Header**: Back button, page title, and goal setting button
+2. **Mini donut cards**: Horizontal scrollable timeline of logged days
+3. **Navigation arrows**: Desktop overlays, mobile bottom buttons
+4. **Big donut chart**: Detailed view of selected day
+5. **Consumed meals list**: All meals logged for the selected day
+
+## Setting calorie goals
+
+### Initial goal setup
+
+When you log your first meal:
+
+<Steps>
+  <Step title="Modal appears">
+    A dialog prompts: "Günlük kalori hedefinizi belirleyin"
+  </Step>
+  
+  <Step title="Enter target calories">
+    Input your daily calorie target (e.g., 2000)
+  </Step>
+  
+  <Step title="Save goal">
+    Click "Kaydet" to save your goal
+  </Step>
+  
+  <Step title="Meal is logged">
+    The meal you were adding is automatically logged after setting your goal
+  </Step>
+</Steps>
+
+### Updating your goal
+
+To change your calorie goal later:
+
+1. Go to the calorie tracking page (`/kalori-takibi`)
+2. Click the "Hedef: [X] kcal" button in the header
+3. Enter your new target and save
+
+The goal persists across all days and syncs to all your devices.
+
+## Visual tracking: Donut charts
+
+### Mini donut cards
+
+The top of the dashboard shows 4-5 small donut charts in a horizontal row:
+
+**Mobile**: 4 cards visible at once
+**Desktop**: 5 cards visible at once
+
+#### Card anatomy
+
+- **Donut chart**: Visual representation of calories consumed vs. goal
+- **Center number**: Total calories for that day
+- **Date label**: "Bugün" (if today) or short date (e.g., "15 Mar")
+- **Calorie fraction**: Desktop shows "[consumed]/[goal] kcal"
+
+#### Chart colors
+
+Each meal segment uses a distinct color from the palette:
+
+```
+Blue:     hsl(210, 70%, 65%)
+Pink:     hsl(340, 65%, 65%)
+Mint:     hsl(160, 55%, 55%)
+Amber:    hsl(40, 80%, 60%)
+Lavender: hsl(270, 55%, 68%)
+Coral:    hsl(15, 75%, 65%)
+Teal:     hsl(185, 60%, 55%)
+Yellow:   hsl(55, 70%, 58%)
+```
+
+Remaining goal space is shown in light gray: `hsl(0, 0%, 90%)`
+
+#### Selection state
+
+Clicking a mini card:
+- Adds a primary border and ring
+- Enlarges slightly with shadow
+- Updates the big chart below
+
+### Big donut chart
+
+The selected day's detailed view shows:
+
+- **Large donut**: Bigger visualization with tooltips on hover
+- **Center display**: 
+  - Total calories (large, bold)
+  - Goal fraction: "/ [goal] kcal" (smaller, muted)
+- **Footer**:
+  - Date label (e.g., "Pazartesi, 15 Mart 2025")
+  - "Bugün" badge if it's today
+  - Status badge (see below)
+
+### Goal status indicators
+
+The status badge shows your progress toward your goal:
+
+**Green** (under 75% of goal):
+- Badge text: "Hedefin altında"
+- Color: `bg-emerald-500/10 text-emerald-600`
+
+**Orange** (75-100% of goal):
+- Badge text: "Hedefe yaklaşıyorsunuz"
+- Color: `bg-amber-500/10 text-amber-600`
+
+**Red** (exceeds goal):
+- Badge text: "Hedef aşıldı"
+- Color: `bg-red-500/10 text-red-600`
+
+<Tip>
+The status badge updates in real-time as you add or remove meals from your daily log.
+</Tip>
+
+## Consumed meals list
+
+The right side (desktop) or below the chart (mobile) shows:
+
+- **Section title**: "Yenilen Yemekler"
+- **Meal rows**: Each with:
+  - Color dot matching the donut chart segment
+  - Meal name (title-cased)
+  - Calorie badge (monospace font)
+  - Eye icon: View meal details
+  - Trash icon: Remove from log
+- **Footer**: Total calories for the day with status-colored badge
+
+### Empty state
+
+```
+Bu gün için kayıt yok.
+```
+
+This appears when a day is selected but no meals have been logged yet.
+
+## Pagination and navigation
+
+Browse through your calorie history:
+
+**Desktop**: Hover arrows appear on the left and right sides of the mini donut cards. Click to navigate to previous or next page.
+
+**Mobile**: "Önceki" and "Sonraki" buttons appear below the mini cards.
+
+Each page shows 4-5 days depending on screen size. The app automatically starts on the most recent page when loading.
+
+## Empty state (no logs)
+
+When you haven't tracked any meals yet:
+
+```
+[Flame icon]
+
+Kalori takibi için henüz bir kayıt bulunamadı. 
+Menüdeki ekle butonunu kullanarak kalori 
+takibine başlayabilirsiniz.
+
+[Menüye Dön]
+```
+
+Click "Menüye Dön" to return to the menu and start logging meals.
+
+## Data persistence
+
+Your calorie logs are:
+
+- **Stored per date**: Each day has its own independent log
+- **Synchronized**: Available across all your signed-in devices
+- **Permanent**: Logs remain in your account indefinitely
+- **Optimistic**: UI updates instantly, syncs in background
+
+### Automatic cleanup
+
+When you remove all meals from a day, that day's record is deleted from the database entirely to keep your data clean.
+
+## Use cases
+
+Common ways students use calorie tracking:
+
+1. **Diet monitoring**: Track intake to maintain or lose weight
+2. **Meal planning**: Review past consumption to plan future meals
+3. **Health goals**: Ensure adequate nutrition from cafeteria options
+4. **Habit formation**: Build awareness of eating patterns
+5. **Athletic training**: Monitor calories for workout performance
+
+The visual charts make it easy to see trends and stay motivated toward your health goals.

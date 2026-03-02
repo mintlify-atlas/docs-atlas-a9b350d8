@@ -1,0 +1,140 @@
+---
+title: Development setup
+description: Get started with the Çukurova University Cafeteria app development environment
+---
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Node.js** 18 or higher
+- **pnpm** (recommended package manager)
+- **Git**
+- **PostgreSQL** (via NeonDB for serverless)
+
+## Clone the repository
+
+```bash
+git clone https://github.com/umutcandev/cukurova-yemekhane.git
+cd cukurova-yemekhane
+```
+
+## Install dependencies
+
+The project uses pnpm as the package manager:
+
+```bash
+pnpm install
+```
+
+## Environment variables
+
+Create a `.env.local` file in the project root:
+
+```bash
+cp .env.example .env.local
+```
+
+Configure the following environment variables:
+
+| Variable | Description | Where to get it |
+|----------|-------------|----------------|
+| `DATABASE_URL` | NeonDB PostgreSQL connection URL | [NeonDB Console](https://console.neon.tech) |
+| `NEXT_PUBLIC_GA_ID` | Google Analytics measurement ID | [Google Analytics](https://analytics.google.com) |
+| `NEXTAUTH_SECRET` | NextAuth.js session secret | Generate with `openssl rand -base64 32` |
+| `NEXTAUTH_URL` | Application URL | `http://localhost:3000` for local dev |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) |
+| `SMTP_USER` | Gmail address for notifications | Your Gmail account |
+| `SMTP_PASS` | Google app password (16 chars) | [Google Account → Security → App Passwords](https://myaccount.google.com/apppasswords) |
+
+## Database setup
+
+Push the database schema to your NeonDB instance using Drizzle Kit:
+
+```bash
+px drizzle-kit push
+```
+
+This creates all necessary tables:
+- `users`, `accounts`, `sessions`, `verificationTokens` (NextAuth.js)
+- `menu_reactions` (like/dislike counts)
+- `favorites` (user's favorite meals)
+- `email_preferences` (notification settings)
+- `daily_logs` (calorie tracking)
+
+## Scrape initial data
+
+Before running the dev server, fetch menu data from the university website:
+
+```bash
+pnpm scrape
+```
+
+This runs the scraping script and saves menu JSON files to `public/data/<YYYY-MM>/`.
+
+## Available scripts
+
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start development server at `http://localhost:3000` |
+| `pnpm build` | Build production bundle |
+| `pnpm start` | Start production server |
+| `pnpm type-check` | Run TypeScript type checking |
+| `pnpm scrape` | Scrape menu data from university website |
+
+## Run the dev server
+
+```bash
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser. The app uses:
+- **Webpack** as the bundler
+- **Hot Module Replacement (HMR)** for instant updates
+- **Fast Refresh** for React components
+
+## Development workflow
+
+1. **Make changes** to components, hooks, or pages
+2. **See changes instantly** via HMR
+3. **Run type checking** with `pnpm type-check` before committing
+4. **Re-scrape data** when the university updates menus
+
+## OAuth setup (optional)
+
+To enable Google login locally:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Create a new project or select existing
+3. Enable **Google+ API**
+4. Create **OAuth 2.0 Client ID** credentials
+5. Add authorized redirect URI: `http://localhost:3000/api/auth/callback/google`
+6. Copy Client ID and Secret to `.env.local`
+
+## Troubleshooting
+
+<Accordion title="Port 3000 already in use">
+  Kill the process using port 3000:
+  ```bash
+  lsof -ti:3000 | xargs kill -9
+  ```
+  Or specify a different port:
+  ```bash
+  PORT=3001 pnpm dev
+  ```
+</Accordion>
+
+<Accordion title="Database connection error">
+  Verify your `DATABASE_URL` in `.env.local` is correct and the NeonDB instance is active.
+</Accordion>
+
+<Accordion title="Scraping fails">
+  The university website may be down or blocking requests. Try again later or check your network connection.
+</Accordion>
+
+## Next steps
+
+- Read [Project structure](/development/project-structure) to understand the codebase
+- Explore [Components](/development/components) to learn about UI building blocks
+- Check [Hooks](/development/hooks) for state management utilities

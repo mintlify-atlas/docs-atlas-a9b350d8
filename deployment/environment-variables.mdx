@@ -1,0 +1,153 @@
+---
+title: Environment variables
+description: Configure all required environment variables for the Çukurova University Cafeteria application
+---
+
+This page documents all environment variables required to run the application in production and development.
+
+## Database configuration
+
+<ParamField path="DATABASE_URL" type="string" required>
+  PostgreSQL connection string for NeonDB or any PostgreSQL database.
+  
+  **Format:** `postgresql://user:password@host:port/database`
+  
+  **Example:** `postgresql://user:password@ep-cool-smoke-123456.us-east-2.aws.neon.tech/cuyemekhane?sslmode=require`
+  
+  <Warning>
+    This variable is required for database operations, Drizzle ORM, and NextAuth.js adapter.
+  </Warning>
+</ParamField>
+
+## Authentication
+
+### NextAuth.js configuration
+
+<ParamField path="NEXTAUTH_SECRET" type="string" required>
+  Secret key used to encrypt session tokens and sign cookies.
+  
+  **Generate with:** `openssl rand -base64 32`
+  
+  **Example:** `your-secret-key-here`
+  
+  <Warning>
+    Never commit this value to version control. Use a unique secret for each environment.
+  </Warning>
+</ParamField>
+
+<ParamField path="NEXTAUTH_URL" type="string" required>
+  The canonical URL of your application. Used for OAuth callbacks and session validation.
+  
+  **Production example:** `https://yemekhane.example.com`
+  
+  **Development example:** `http://localhost:3000`
+  
+  <Warning>
+    In production, this must match your actual domain exactly including the protocol (https://).
+  </Warning>
+</ParamField>
+
+### Google OAuth
+
+<ParamField path="GOOGLE_CLIENT_ID" type="string" required>
+  OAuth 2.0 client ID from Google Cloud Console.
+  
+  **Format:** `your-id.apps.googleusercontent.com`
+  
+  Get credentials from: [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+  
+  <Warning>
+    Remember to add your callback URL in Google Cloud Console:
+    `https://your-domain.com/api/auth/callback/google`
+  </Warning>
+</ParamField>
+
+<ParamField path="GOOGLE_CLIENT_SECRET" type="string" required>
+  OAuth 2.0 client secret from Google Cloud Console.
+  
+  **Example:** `your-google-client-secret`
+</ParamField>
+
+## Email notifications
+
+<ParamField path="SMTP_USER" type="string" required>
+  Gmail address used to send email notifications for favorite meals.
+  
+  **Example:** `your-email@gmail.com`
+</ParamField>
+
+<ParamField path="SMTP_PASS" type="string" required>
+  Gmail App Password (16-character password) for SMTP authentication.
+  
+  **How to generate:**
+  1. Enable 2-Factor Authentication on your Google Account
+  2. Go to: Google Account → Security → App Passwords
+  3. Create a new app password
+  4. Copy the 16-character password
+  
+  **Example:** `your-16-char-app-password`
+  
+  <Warning>
+    This is NOT your regular Gmail password. You must use an App Password.
+  </Warning>
+</ParamField>
+
+## Analytics and feature flags
+
+<ParamField path="NEXT_PUBLIC_GA_ID" type="string" optional>
+  Google Analytics Measurement ID for tracking user behavior.
+  
+  **Format:** `G-XXXXXXXXXX`
+  
+  Get from: [Google Analytics](https://analytics.google.com)
+  
+  <Warning>
+    Variables with `NEXT_PUBLIC_` prefix are baked into the build at build time and exposed to the browser.
+  </Warning>
+</ParamField>
+
+<ParamField path="NEXT_PUBLIC_AUTH_ENABLED" type="boolean" default="true">
+  Feature flag to enable or disable the authentication system.
+  
+  **Values:** `true` or `false`
+  
+  When set to `false`, the middleware, SessionProvider, and all auth API calls are disabled, reducing Edge Request count.
+  
+  <Warning>
+    This is a build-time variable. Changes require a rebuild to take effect.
+  </Warning>
+</ParamField>
+
+## Environment file setup
+
+### Development
+
+Create a `.env.local` file in the root of your project:
+
+```bash
+cp .env.example .env.local
+```
+
+Then fill in all required values in `.env.local`.
+
+### Production (Vercel)
+
+1. Go to your Vercel project dashboard
+2. Navigate to Settings → Environment Variables
+3. Add each variable with its production value
+4. Select the appropriate environments (Production, Preview, Development)
+
+### GitHub Actions
+
+For automated workflows, add secrets to your repository:
+
+1. Go to repository Settings → Secrets and variables → Actions
+2. Click "New repository secret"
+3. Add the following secrets:
+   - `DATABASE_URL`
+   - `SMTP_USER`
+   - `SMTP_PASS`
+
+<Warning>
+  Only add secrets that are actually needed by your workflows. The menu update workflow only requires `DATABASE_URL`, `SMTP_USER`, and `SMTP_PASS`.
+</Warning>

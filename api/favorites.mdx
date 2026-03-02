@@ -1,0 +1,331 @@
+---
+title: Favorites
+description: Manage user's favorite meals
+---
+
+The favorites API allows authenticated users to save and manage their favorite meals.
+
+<Warning>
+  This endpoint requires authentication. Users must be signed in with Google OAuth.
+</Warning>
+
+## Get user favorites
+
+Retrieve the authenticated user's list of favorite meals.
+
+```
+GET /api/favorites
+```
+
+### Authentication
+
+Requires a valid NextAuth.js session. Returns an empty array if not authenticated.
+
+### Response
+
+<ResponseField name="favorites" type="FavoriteItem[]">
+  Array of favorite meals
+  
+  <Expandable title="FavoriteItem properties">
+    <ResponseField name="mealName" type="string">
+      Name of the favorited meal (e.g., "Ekşili Köfte")
+    </ResponseField>
+    
+    <ResponseField name="mealId" type="string | null">
+      Meal ID if available (e.g., "157")
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example request
+
+<CodeGroup>
+
+```bash cURL
+curl https://yemekhane.cu.edu.tr/api/favorites \
+  -H "Cookie: next-auth.session-token=..."
+```
+
+```typescript TypeScript
+const response = await fetch(
+  'https://yemekhane.cu.edu.tr/api/favorites',
+  {
+    credentials: 'include', // Include cookies
+  }
+);
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get(
+  'https://yemekhane.cu.edu.tr/api/favorites',
+  cookies={'next-auth.session-token': '...'}
+)
+data = response.json()
+```
+
+</CodeGroup>
+
+### Example response
+
+```json
+{
+  "favorites": [
+    {
+      "mealName": "Ekşili Köfte",
+      "mealId": "157"
+    },
+    {
+      "mealName": "Mercimek Çorbası",
+      "mealId": "45"
+    },
+    {
+      "mealName": "Pirinç Pilavı",
+      "mealId": "89"
+    }
+  ]
+}
+```
+
+### Unauthenticated response
+
+```json
+{
+  "favorites": []
+}
+```
+
+### Error responses
+
+<CodeGroup>
+
+```json 500 Internal Server Error
+{
+  "error": "Internal server error"
+}
+```
+
+```json 503 Service Unavailable
+{
+  "favorites": []
+}
+```
+
+</CodeGroup>
+
+---
+
+## Toggle favorite
+
+Add or remove a meal from the user's favorites.
+
+```
+POST /api/favorites
+```
+
+<Info>
+  This endpoint toggles the favorite status. If the meal is already favorited, it will be removed. If not favorited, it will be added.
+</Info>
+
+### Authentication
+
+Requires a valid NextAuth.js session. Returns 401 if not authenticated.
+
+### Request body
+
+<ParamField body="mealName" type="string" required>
+  Name of the meal to favorite/unfavorite (e.g., "Ekşili Köfte")
+</ParamField>
+
+<ParamField body="mealId" type="string" optional>
+  Optional meal ID for reference (e.g., "157")
+</ParamField>
+
+### Response
+
+<ResponseField name="action" type="string">
+  Either `"added"` or `"removed"` depending on the operation performed
+</ResponseField>
+
+<ResponseField name="mealName" type="string">
+  The meal name that was added or removed
+</ResponseField>
+
+### Example request
+
+<CodeGroup>
+
+```bash cURL - Add Favorite
+curl -X POST https://yemekhane.cu.edu.tr/api/favorites \
+  -H "Content-Type: application/json" \
+  -H "Cookie: next-auth.session-token=..." \
+  -d '{
+    "mealName": "Ekşili Köfte",
+    "mealId": "157"
+  }'
+```
+
+```typescript TypeScript
+const response = await fetch(
+  'https://yemekhane.cu.edu.tr/api/favorites',
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+      mealName: 'Ekşili Köfte',
+      mealId: '157',
+    }),
+  }
+);
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+  'https://yemekhane.cu.edu.tr/api/favorites',
+  json={
+    'mealName': 'Ekşili Köfte',
+    'mealId': '157'
+  },
+  cookies={'next-auth.session-token': '...'}
+)
+data = response.json()
+```
+
+</CodeGroup>
+
+### Example responses
+
+<CodeGroup>
+
+```json Added
+{
+  "action": "added",
+  "mealName": "Ekşili Köfte"
+}
+```
+
+```json Removed
+{
+  "action": "removed",
+  "mealName": "Ekşili Köfte"
+}
+```
+
+</CodeGroup>
+
+### Error responses
+
+<CodeGroup>
+
+```json 400 Bad Request
+{
+  "error": "mealName is required"
+}
+```
+
+```json 401 Unauthorized
+{
+  "error": "Unauthorized"
+}
+```
+
+```json 500 Internal Server Error
+{
+  "error": "Internal server error"
+}
+```
+
+```json 503 Service Unavailable
+{
+  "error": "Auth disabled"
+}
+```
+
+</CodeGroup>
+
+### Implementation details
+
+- Favorites are stored per-user in the `favorites` database table
+- Duplicate favorites are prevented by unique constraint on `(userId, mealName)`
+- The endpoint automatically detects existing favorites and toggles accordingly
+- `mealId` is optional and can be `null` for legacy support
+
+### Database schema
+
+```sql
+CREATE TABLE favorites (
+  id SERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  meal_name TEXT NOT NULL,
+  meal_id TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, meal_name)
+);
+```
+
+### TypeScript usage
+
+```typescript
+interface FavoriteItem {
+  mealName: string;
+  mealId: string | null;
+}
+
+interface FavoritesResponse {
+  favorites: FavoriteItem[];
+}
+
+interface ToggleFavoriteResponse {
+  action: 'added' | 'removed';
+  mealName: string;
+}
+
+// Get favorites
+async function getFavorites(): Promise<FavoritesResponse> {
+  const response = await fetch('/api/favorites', {
+    credentials: 'include',
+  });
+  return response.json();
+}
+
+// Toggle favorite
+async function toggleFavorite(
+  mealName: string,
+  mealId?: string
+): Promise<ToggleFavoriteResponse> {
+  const response = await fetch('/api/favorites', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ mealName, mealId }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to toggle favorite');
+  }
+  
+  return response.json();
+}
+
+// Check if meal is favorited
+async function isFavorited(mealName: string): Promise<boolean> {
+  const { favorites } = await getFavorites();
+  return favorites.some(fav => fav.mealName === mealName);
+}
+```
+
+### Feature flag
+
+The favorites feature respects the `AUTH_ENABLED` flag. When authentication is disabled:
+
+- GET returns `{ favorites: [] }`
+- POST returns `{ error: "Auth disabled" }` with 503 status

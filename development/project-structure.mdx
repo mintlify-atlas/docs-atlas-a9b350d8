@@ -1,0 +1,237 @@
+---
+title: Project structure
+description: Directory organization, file conventions, and routing in the Çukurova cafeteria app
+---
+
+## Directory overview
+
+```
+cu-yemekhane/
+├── app/                    # Next.js App Router
+├── components/             # React components
+├── hooks/                  # Custom React hooks
+├── lib/                    # Utilities and business logic
+├── public/                 # Static assets
+├── scripts/                # Build and automation scripts
+└── .github/                # GitHub Actions workflows
+```
+
+## `app/` directory
+
+The app uses **Next.js 16 App Router** with file-based routing.
+
+### Routing structure
+
+```
+app/
+├── page.tsx                # / (home page - Server Component)
+├── menu-page.tsx           # Menu UI (Client Component)
+├── layout.tsx              # Root layout with providers
+├── globals.css             # Global styles
+├── manifest.ts             # PWA manifest
+├── favorilerim/
+│   └── page.tsx            # /favorilerim (favorites page)
+├── kalori-takibi/
+│   └── page.tsx            # /kalori-takibi (calorie tracking)
+└── api/                    # API routes
+    ├── auth/
+    │   └── [...nextauth]/  # NextAuth.js handler
+    ├── reactions/route.ts  # Like/dislike API
+    ├── favorites/route.ts  # Favorites API
+    ├── daily-log/          # Calorie tracking API
+    │   ├── route.ts        # GET/POST daily log
+    │   └── all/route.ts    # GET all logs
+    ├── email-preferences/
+    │   └── route.ts        # Notification settings
+    └── meal/[id]/route.ts  # Meal detail scraping
+```
+
+### Server vs client components
+
+- **Server Components** (default): `app/page.tsx`, layouts - render on server, no JS sent to client
+- **Client Components** (`"use client"`): `menu-page.tsx`, interactive UI - require browser APIs
+
+## `components/` directory
+
+Reusable React components organized by function:
+
+```
+components/
+├── ui/                     # shadcn/ui base components
+│   ├── button.tsx
+│   ├── card.tsx
+│   ├── dialog.tsx
+│   └── ...50+ components
+├── header.tsx              # Top navigation bar
+├── menu-card.tsx           # Daily menu card
+├── like-dislike-buttons.tsx # Reaction buttons
+├── favorite-button.tsx     # Favorite toggle
+├── add-meal-button.tsx     # "I ate this" button
+├── menu-share-bar.tsx      # Share menu as image
+├── meal-detail-modal.tsx   # Meal ingredients modal
+├── date-picker.tsx         # Calendar date picker
+├── mobile-bottom-nav.tsx   # Mobile navigation
+├── pwa-install-banner.tsx  # PWA install prompt (not in use)
+├── auth-button.tsx         # Login/profile button
+├── auth-drawer.tsx         # Login prompt drawer
+├── theme-toggle.tsx        # Dark/light theme switch
+└── theme-provider.tsx      # Theme context provider
+```
+
+### UI component library
+
+The `components/ui/` directory contains **shadcn/ui** components built on Radix UI primitives. These are:
+- **Accessible** (ARIA-compliant)
+- **Customizable** via Tailwind CSS
+- **Composable** (build complex UIs from primitives)
+
+## `hooks/` directory
+
+Custom React hooks for state management:
+
+```
+hooks/
+├── use-favorites.ts        # Manage favorite meals
+├── use-daily-log.ts        # Calorie tracking
+├── use-mobile.ts           # Mobile breakpoint detection
+├── use-media-query.ts      # Generic media query hook
+├── use-pwa-install.ts      # PWA install prompt
+├── use-calorie-goal.ts     # Daily calorie goal
+└── use-toast.ts            # Toast notifications
+```
+
+See [Hooks](/development/hooks) for detailed API documentation.
+
+## `lib/` directory
+
+Utilities, types, and business logic:
+
+```
+lib/
+├── auth.ts                 # NextAuth.js configuration
+├── scraper.ts              # Cheerio-based web scraper
+├── menu-loader.ts          # JSON file loading logic
+├── rate-limiter.ts         # IP-based rate limiting
+├── date-utils.ts           # Date formatting helpers
+├── types.ts                # TypeScript type definitions
+├── utils.ts                # General utilities (cn, etc.)
+└── db/
+    ├── index.ts            # Drizzle ORM connection
+    └── schema.ts           # Database schema definitions
+```
+
+### Key files
+
+- **`scraper.ts`**: Scrapes menu data from the university's ASP website using Cheerio and iconv-lite for Windows-1254 encoding
+- **`menu-loader.ts`**: Reads JSON files from `public/data/` and serves them to the app
+- **`types.ts`**: TypeScript interfaces for `MenuData`, `DayMenu`, `Meal`, etc.
+- **`db/schema.ts`**: Drizzle schema for users, favorites, reactions, daily logs, etc.
+
+## `public/` directory
+
+Static assets served directly:
+
+```
+public/
+├── data/                   # Scraped menu JSON files
+│   ├── 2026-01/
+│   │   └── menu-20260131.json
+│   └── 2026-02/
+│       ├── menu-20260215.json
+│       └── menu-20260219.json  (max 5 files per month)
+├── icon/                   # PWA icons
+├── logo-cu.png             # University logo
+└── manifest.json           # PWA manifest (generated)
+```
+
+### Menu data structure
+
+JSON files follow the format:
+
+```json
+{
+  "month": "2026-02",
+  "lastUpdated": "2026-02-19T07:00:00Z",
+  "scrapeDate": "2026-02-19",
+  "totalDays": 28,
+  "days": [
+    {
+      "ymk": 12345,
+      "date": "2026-02-19",
+      "dayName": "Çarşamba",
+      "hasData": true,
+      "totalCalories": 891,
+      "meals": [
+        {
+          "id": "157",
+          "name": "Ekşili Köfte",
+          "calories": 294,
+          "category": "ana_yemek"
+        }
+      ]
+    }
+  ]
+}
+```
+
+## `scripts/` directory
+
+Automation and build scripts:
+
+```
+scripts/
+├── scrape-menu.ts          # CLI scraper (pnpm scrape)
+└── send-favorite-notifications.ts  # Email notifications
+```
+
+## File naming conventions
+
+- **Components**: `kebab-case.tsx` (e.g., `menu-card.tsx`)
+- **Hooks**: `use-*.ts` (e.g., `use-favorites.ts`)
+- **API routes**: `route.ts` (Next.js convention)
+- **Pages**: `page.tsx` (Next.js convention)
+- **Types**: `types.ts` or inline in component files
+
+## Import aliases
+
+The project uses TypeScript path aliases:
+
+```typescript
+import { Button } from "@/components/ui/button"  // @/ = root directory
+import { cn } from "@/lib/utils"
+import type { MenuData } from "@/lib/types"
+```
+
+Configured in `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./*"]
+    }
+  }
+}
+```
+
+## Middleware
+
+The `middleware.ts` file at the root protects authenticated routes:
+
+```typescript
+// Redirects to home if not logged in
+const protectedRoutes = ["/favorilerim", "/kalori-takibi"]
+```
+
+## Configuration files
+
+- **`next.config.mjs`**: Next.js + PWA config
+- **`tailwind.config.ts`**: Tailwind CSS theme
+- **`drizzle.config.ts`**: Drizzle Kit database config
+- **`tsconfig.json`**: TypeScript compiler options
+
+## Next steps
+
+- Learn about [Components](/development/components) in detail
+- Explore [Custom hooks](/development/hooks)
+- Understand [Scraping workflow](/development/scraping)

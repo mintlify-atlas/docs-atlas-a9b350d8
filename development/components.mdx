@@ -1,0 +1,431 @@
+---
+title: Components
+description: Key React components and their usage in the cafeteria app
+---
+
+## Component architecture
+
+The app uses a component-based architecture with:
+- **shadcn/ui** for base UI primitives
+- **Radix UI** for accessible components
+- **Framer Motion** for animations
+- **Client/Server Component** separation for performance
+
+## Core components
+
+### MenuCard
+
+Displays a daily menu with meals, calories, reactions, and AI prompts.
+
+**Location**: `components/menu-card.tsx`
+
+**Props**:
+
+```typescript
+interface MenuCardProps {
+  day: MenuDay  // Menu data for a specific day
+  onMealClick: (mealId: string, mealName: string, mealCalories: number) => void
+}
+```
+
+**Usage**:
+
+```tsx
+import { MenuCard } from "@/components/menu-card"
+
+<MenuCard 
+  day={menuDay} 
+  onMealClick={(id, name, cals) => openMealModal(id)} 
+/>
+```
+
+**Features**:
+- Like/dislike buttons
+- Favorite toggle per meal
+- "I ate this" button for calorie tracking
+- AI prompt generation (ChatGPT, Claude, Grok, Perplexity)
+- Menu sharing as image
+- Responsive layout
+
+<Accordion title="MenuCard implementation details">
+  The component:
+  - Fetches daily log on mount via `getDailyLog(day.date)`
+  - Shows `CircleCheck` icon for consumed meals
+  - Prevents future date meal logging
+  - Prompts for calorie goal on first use
+  - Uses optimistic updates for instant feedback
+  - Displays total calories with color indicator (green < 800, amber < 1100, red ≥ 1100)
+</Accordion>
+
+### Header
+
+Top navigation bar with logo, search, GitHub link, theme toggle, and auth.
+
+**Location**: `components/header.tsx`
+
+**Features**:
+- University logo
+- Menu search (Cmd+K / Ctrl+K)
+- PWA install button (when installable)
+- GitHub repository link
+- Info dialog
+- Authentication button
+- Theme toggle
+- Mobile hamburger menu
+
+**Desktop vs Mobile**:
+
+```tsx
+{/* Desktop */}
+<div className="hidden md:flex items-center gap-2">
+  <MenuSearchCommand />
+  <AuthButton />
+  <ThemeToggle />
+</div>
+
+{/* Mobile */}
+<div className="flex md:hidden items-center gap-2">
+  <MenuSearchCommand />
+  <Button onClick={() => setMobileMenuOpen(true)} />
+</div>
+```
+
+### LikeDislikeButtons
+
+Anonymous reaction buttons with optimistic updates and rate limiting.
+
+**Location**: `components/like-dislike-buttons.tsx`
+
+**Props**:
+
+```typescript
+interface LikeDislikeButtonsProps {
+  menuDate: string  // "2026-02-19" format
+}
+```
+
+**Usage**:
+
+```tsx
+<LikeDislikeButtons menuDate="2026-02-19" />
+```
+
+**Features**:
+- IP-based rate limiting (prevents spam)
+- Optimistic UI updates (instant feedback)
+- localStorage persistence (remembers user choice)
+- Animated counters (only show count > 0)
+- Automatic rollback on error
+
+<Accordion title="Reaction state machine">
+  State transitions:
+  - `null → like`: Add like
+  - `like → null`: Remove like
+  - `like → dislike`: Remove like, add dislike
+  - `dislike → like`: Remove dislike, add like
+  
+  LocalStorage key: `reaction_{menuDate}`
+</Accordion>
+
+### FavoriteButton
+
+Toggle favorite meals with authentication check.
+
+**Location**: `components/favorite-button.tsx`
+
+**Props**:
+
+```typescript
+interface FavoriteButtonProps {
+  mealName: string
+}
+```
+
+**Usage**:
+
+```tsx
+<FavoriteButton mealName="Ekşili Köfte" />
+```
+
+**Behavior**:
+- Requires login (shows `AuthDrawer` if not authenticated)
+- Heart icon (filled when favorited)
+- Framer Motion scale animation
+- Success/error toast notifications
+
+### MenuShareBar
+
+Export menu as PNG/JPEG or share via Web Share API.
+
+**Location**: `components/menu-share-bar.tsx`
+
+**Usage**:
+
+```tsx
+import { MenuShareBar } from "@/components/menu-share-bar"
+
+<MenuShareBar day={menuDay} />
+```
+
+**Features**:
+- Generates image from DOM using `html-to-image`
+- Download as PNG or JPEG
+- Native share dialog (mobile)
+- Loading states during image generation
+
+### MealDetailModal
+
+Shows meal ingredients and image scraped in real-time.
+
+**Location**: `components/meal-detail-modal.tsx`
+
+**Props**:
+
+```typescript
+interface MealDetailModalProps {
+  mealId: string | null
+  mealName: string
+  onClose: () => void
+}
+```
+
+**Usage**:
+
+```tsx
+<MealDetailModal 
+  mealId="157" 
+  mealName="Ekşili Köfte"
+  onClose={() => setMealId(null)} 
+/>
+```
+
+**Behavior**:
+- Fetches from `/api/meal/[id]` on open
+- Displays loading skeleton
+- Shows ingredients table (name, amount, unit)
+- Meal image (if available)
+- Desktop: Dialog, Mobile: Drawer
+
+### DatePicker
+
+Calendar date range picker with mobile bottom sheet.
+
+**Location**: `components/date-picker.tsx`
+
+**Props**:
+
+```typescript
+interface DatePickerProps {
+  availableDates: string[]  // ["2026-02-19", "2026-02-20"]
+  currentDate: string
+  onDateSelect: (date: string) => void
+}
+```
+
+**Usage**:
+
+```tsx
+<DatePicker 
+  availableDates={dates}
+  currentDate={selectedDate}
+  onDateSelect={setSelectedDate}
+/>
+```
+
+**Features**:
+- Highlights available dates
+- Disables unavailable dates
+- Mobile: Bottom sheet drawer
+- Desktop: Popover dialog
+- `react-day-picker` integration
+
+### AuthButton
+
+Google OAuth login with profile dropdown.
+
+**Location**: `components/auth-button.tsx`
+
+**States**:
+- **Not logged in**: "Giriş Yap" button
+- **Logged in**: User avatar + dropdown menu
+
+**Dropdown menu**:
+- Profile info (name, email)
+- Navigate to Favorites
+- Navigate to Calorie Tracking
+- Sign out
+
+**Usage**:
+
+```tsx
+import { AuthButton } from "@/components/auth-button"
+
+<AuthButton />
+```
+
+### ThemeToggle
+
+Switch between light, dark, and system theme.
+
+**Location**: `components/theme-toggle.tsx`
+
+**Usage**:
+
+```tsx
+import { ThemeToggle } from "@/components/theme-toggle"
+
+<ThemeToggle />
+```
+
+**Themes**:
+- Light
+- Dark
+- System (follows OS preference)
+
+Uses `next-themes` for persistence.
+
+## UI component library
+
+The `components/ui/` directory contains 50+ shadcn/ui components:
+
+<Accordion title="Button">
+  **Location**: `components/ui/button.tsx`
+  
+  ```tsx
+  import { Button } from "@/components/ui/button"
+  
+  <Button variant="default" size="md">
+    Click me
+  </Button>
+  ```
+  
+  **Variants**: default, destructive, outline, secondary, ghost, link
+  
+  **Sizes**: default, sm, lg, icon
+</Accordion>
+
+<Accordion title="Card">
+  **Location**: `components/ui/card.tsx`
+  
+  ```tsx
+  import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+  
+  <Card>
+    <CardHeader>
+      <CardTitle>Title</CardTitle>
+    </CardHeader>
+    <CardContent>
+      Content
+    </CardContent>
+  </Card>
+  ```
+</Accordion>
+
+<Accordion title="Dialog">
+  **Location**: `components/ui/dialog.tsx`
+  
+  ```tsx
+  import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+  
+  <Dialog open={open} onOpenChange={setOpen}>
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Title</DialogTitle>
+      </DialogHeader>
+      <p>Content</p>
+    </DialogContent>
+  </Dialog>
+  ```
+</Accordion>
+
+<Accordion title="Drawer">
+  **Location**: `components/ui/drawer.tsx`
+  
+  Mobile-friendly bottom sheet using Vaul:
+  
+  ```tsx
+  import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
+  
+  <Drawer open={open} onOpenChange={setOpen}>
+    <DrawerContent>
+      <DrawerHeader>
+        <DrawerTitle>Title</DrawerTitle>
+      </DrawerHeader>
+      <p>Content</p>
+    </DrawerContent>
+  </Drawer>
+  ```
+</Accordion>
+
+<Accordion title="Accordion">
+  **Location**: `components/ui/accordion.tsx`
+  
+  ```tsx
+  import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
+  
+  <Accordion type="single" collapsible>
+    <AccordionItem value="item-1">
+      <AccordionTrigger>Is it accessible?</AccordionTrigger>
+      <AccordionContent>
+        Yes. It adheres to the WAI-ARIA design pattern.
+      </AccordionContent>
+    </AccordionItem>
+  </Accordion>
+  ```
+</Accordion>
+
+For a complete list, see `components/ui/`.
+
+## Animation patterns
+
+### Framer Motion scale
+
+```tsx
+import { motion } from "framer-motion"
+
+<motion.button whileTap={{ scale: 0.95 }}>
+  Click me
+</motion.button>
+```
+
+### AnimatePresence for enter/exit
+
+```tsx
+import { AnimatePresence, motion } from "framer-motion"
+
+<AnimatePresence mode="wait">
+  {show && (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+    >
+      Content
+    </motion.div>
+  )}
+</AnimatePresence>
+```
+
+## Responsive design
+
+Use Tailwind breakpoints:
+
+```tsx
+<div className="hidden md:block">Desktop only</div>
+<div className="block md:hidden">Mobile only</div>
+```
+
+Or use the `useMobile` hook:
+
+```tsx
+import { useIsMobile } from "@/hooks/use-mobile"
+
+const isMobile = useIsMobile()
+
+return isMobile ? <MobileView /> : <DesktopView />
+```
+
+## Next steps
+
+- Learn about [Custom hooks](/development/hooks)
+- Understand [Scraping workflow](/development/scraping)

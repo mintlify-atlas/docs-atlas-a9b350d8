@@ -1,0 +1,258 @@
+---
+title: GitHub Actions
+description: Automated daily menu scraping and email notifications using GitHub Actions workflows
+---
+
+The application uses GitHub Actions to automate two key processes: daily menu updates and continuous integration checks.
+
+## Menu update workflow
+
+The menu update workflow runs daily to scrape the cafeteria menu and send email notifications to users about their favorite meals.
+
+### Workflow configuration
+
+The workflow is defined in `.github/workflows/menu-update.yml`:
+
+```yaml
+name: Update Menu Data
+
+on:
+  schedule:
+    - cron: '0 4 * * 1-5'  # 4 AM UTC, Monday-Friday
+  workflow_dispatch:        # Manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  scrape-and-commit:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Depoyu Çek (Checkout)
+        uses: actions/checkout@v4
+
+      - name: pnpm Kur
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Node.js Kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Bağımlılıkları Yükle
+        run: pnpm install --frozen-lockfile
+
+      - name: Menüyü Scrape Et
+        run: pnpm run scrape
+
+      - name: Değişiklikleri Kontrol Et ve Pushla
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          git add public/data/
+          git diff --quiet && git diff --staged --quiet || (git commit -m "scraping: Günlük menü güncellemesi" && git push)
+
+      - name: Favori Bildirimleri Gönder
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: pnpm tsx scripts/send-favorite-notifications.ts
+```
+
+### What this workflow does
+
+<Steps>
+  <Step title="Schedule and triggers">
+    The workflow runs automatically:
+    - **Scheduled:** Every weekday (Monday-Friday) at 4:00 AM UTC
+    - **Manual:** Can be triggered manually from GitHub Actions tab using `workflow_dispatch`
+  </Step>
+  
+  <Step title="Scrape menu data">
+    Runs the `pnpm run scrape` command which:
+    - Fetches the latest menu from `yemekhane.cu.edu.tr`
+    - Parses the HTML using Cheerio
+    - Saves the menu data to `public/data/` directory
+  </Step>
+  
+  <Step title="Commit and push changes">
+    Automatically commits new menu data if changes are detected:
+    - Configures Git with GitHub Actions bot credentials
+    - Adds files from `public/data/`
+    - Commits with message: "scraping: Günlük menü güncellemesi"
+    - Pushes to the main branch
+  </Step>
+  
+  <Step title="Send email notifications">
+    Runs the notification script which:
+    - Queries the database for users with favorite meals
+    - Checks if any favorites appear in today's menu
+    - Sends personalized email notifications via SMTP
+  </Step>
+</Steps>
+
+### Required secrets
+
+Add these secrets to your GitHub repository for the workflow to function:
+
+<Steps>
+  <Step title="Navigate to repository secrets">
+    Go to: Repository → Settings → Secrets and variables → Actions
+  </Step>
+  
+  <Step title="Add DATABASE_URL">
+    Click "New repository secret" and add:
+    
+    **Name:** `DATABASE_URL`
+    
+    **Value:** Your NeonDB PostgreSQL connection string
+    
+    ```
+    postgresql://user:password@ep-cool-smoke-123456.us-east-2.aws.neon.tech/neondb?sslmode=require
+    ```
+  </Step>
+  
+  <Step title="Add SMTP_USER">
+    **Name:** `SMTP_USER`
+    
+    **Value:** Your Gmail address
+    
+    ```
+    your-email@gmail.com
+    ```
+  </Step>
+  
+  <Step title="Add SMTP_PASS">
+    **Name:** `SMTP_PASS`
+    
+    **Value:** Your Gmail App Password (16 characters)
+    
+    ```
+    your-16-char-app-password
+    ```
+    
+    <Warning>
+      This must be a Gmail App Password, not your regular password. See [Environment variables](/deployment/environment-variables#email-notifications) for setup instructions.
+    </Warning>
+  </Step>
+</Steps>
+
+### Permissions
+
+The workflow requires `contents: write` permission to commit and push menu data back to the repository.
+
+This permission is automatically granted to the `GITHUB_TOKEN` in the workflow.
+
+### Manual trigger
+
+To manually run the workflow:
+
+1. Go to your repository on GitHub
+2. Click on the "Actions" tab
+3. Select "Update Menu Data" from the workflows list
+4. Click "Run workflow" button
+5. Choose the branch and click "Run workflow"
+
+## Continuous integration workflow
+
+The CI workflow runs on every pull request to ensure code quality.
+
+### Workflow configuration
+
+Defined in `.github/workflows/ci.yml`:
+
+```yaml
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  typecheck:
+    name: TypeScript Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Repoyu Cek
+        uses: actions/checkout@v4
+
+      - name: pnpm Kur
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Node.js Kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Bagımlılıkları Yukle
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript Kontrolu
+        run: pnpm type-check
+```
+
+### What this workflow does
+
+- **Trigger:** Runs automatically on pull requests to the `main` branch
+- **Purpose:** Validates TypeScript types before merging
+- **Command:** Runs `pnpm type-check` which executes `tsc --noEmit`
+- **Timeout:** Fails if it takes longer than 10 minutes
+
+<Warning>
+  The application has `typescript.ignoreBuildErrors: true` in `next.config.mjs` for production builds, but the CI workflow still enforces type checking on PRs to catch issues early.
+</Warning>
+
+## Monitoring workflow runs
+
+You can monitor all workflow runs in the GitHub Actions tab:
+
+1. Go to your repository → Actions
+2. View recent workflow runs and their status
+3. Click on a run to see detailed logs
+4. Check individual steps for errors or warnings
+
+## Troubleshooting
+
+### Workflow fails to push commits
+
+**Error:** Permission denied or authentication failed
+
+**Solution:** Ensure the workflow has `contents: write` permission in the YAML file.
+
+### Email notifications not sending
+
+**Error:** SMTP authentication failed
+
+**Solution:** 
+- Verify `SMTP_USER` and `SMTP_PASS` secrets are correctly set
+- Ensure you're using a Gmail App Password, not your regular password
+- Check that 2FA is enabled on your Google Account
+
+### Scraping script fails
+
+**Error:** Failed to fetch menu data
+
+**Solution:**
+- Check if `yemekhane.cu.edu.tr` is accessible
+- Verify the HTML structure hasn't changed (may need to update the scraper)
+- Run the workflow manually to see detailed error logs
+
+### TypeScript check fails
+
+**Error:** Type errors in pull request
+
+**Solution:**
+- Run `pnpm type-check` locally to see errors
+- Fix type errors before pushing
+- Alternatively, temporarily disable strict type checking if needed

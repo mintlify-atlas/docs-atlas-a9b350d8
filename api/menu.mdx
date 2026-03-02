@@ -1,0 +1,337 @@
+---
+title: Menu endpoints
+description: Retrieve daily cafeteria menus and search meals
+---
+
+The menu endpoints provide access to daily cafeteria menus and a comprehensive search across all available meal data.
+
+## Get menu by date
+
+Retrieve the complete menu for a specific date.
+
+```
+GET /api/menu/date/:date
+```
+
+### Path parameters
+
+<ParamField path="date" type="string" required>
+  Date in ISO format `YYYY-MM-DD` (e.g., `2025-11-03`)
+</ParamField>
+
+### Response
+
+<ResponseField name="found" type="boolean">
+  Whether menu data exists for the requested date
+</ResponseField>
+
+<ResponseField name="day" type="DayMenu" optional>
+  Complete menu data for the date (only present if `found` is `true`)
+  
+  <Expandable title="DayMenu properties">
+    <ResponseField name="ymk" type="number">
+      Week number within the month (1, 2, 3...)
+    </ResponseField>
+    
+    <ResponseField name="date" type="string">
+      ISO date format `YYYY-MM-DD`
+    </ResponseField>
+    
+    <ResponseField name="dayName" type="string">
+      Turkish day name (e.g., "Pazartesi", "Salı")
+    </ResponseField>
+    
+    <ResponseField name="hasData" type="boolean">
+      Whether meal data is available for this day
+    </ResponseField>
+    
+    <ResponseField name="meals" type="Meal[]">
+      Array of meals (empty if `hasData` is `false`)
+    </ResponseField>
+    
+    <ResponseField name="totalCalories" type="number">
+      Total calories for all meals on this day
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Meal object
+
+<ResponseField name="id" type="string">
+  Unique meal identifier (e.g., "157")
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Meal name (e.g., "Ekşili Köfte")
+</ResponseField>
+
+<ResponseField name="calories" type="number">
+  Calorie count for the meal
+</ResponseField>
+
+<ResponseField name="category" type="MealCategory">
+  Meal category: `ana_yemek` (main dish), `yan_yemek` (side), `corba` (soup), `yan_urun` (accompaniment), `tatli` (dessert), or `icecek` (beverage)
+</ResponseField>
+
+### Example request
+
+<CodeGroup>
+
+```bash cURL
+curl https://yemekhane.cu.edu.tr/api/menu/date/2025-11-03
+```
+
+```typescript TypeScript
+const response = await fetch(
+  'https://yemekhane.cu.edu.tr/api/menu/date/2025-11-03'
+);
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get(
+  'https://yemekhane.cu.edu.tr/api/menu/date/2025-11-03'
+)
+data = response.json()
+```
+
+</CodeGroup>
+
+### Example response
+
+```json
+{
+  "found": true,
+  "day": {
+    "ymk": 1,
+    "date": "2025-11-03",
+    "dayName": "Pazartesi",
+    "hasData": true,
+    "meals": [
+      {
+        "id": "157",
+        "name": "Ekşili Köfte",
+        "calories": 294,
+        "category": "ana_yemek"
+      },
+      {
+        "id": "89",
+        "name": "Pirinç Pilavı",
+        "calories": 210,
+        "category": "yan_yemek"
+      },
+      {
+        "id": "45",
+        "name": "Mercimek Çorbası",
+        "calories": 120,
+        "category": "corba"
+      },
+      {
+        "id": "12",
+        "name": "Ayran",
+        "calories": 50,
+        "category": "yan_urun"
+      },
+      {
+        "id": "78",
+        "name": "Sütlaç",
+        "calories": 123,
+        "category": "tatli"
+      }
+    ],
+    "totalCalories": 797
+  }
+}
+```
+
+### No data response
+
+```json
+{
+  "found": false
+}
+```
+
+### Error responses
+
+<CodeGroup>
+
+```json 400 Bad Request
+{
+  "error": "Invalid date format"
+}
+```
+
+```json 500 Internal Server Error
+{
+  "error": "Internal server error"
+}
+```
+
+</CodeGroup>
+
+---
+
+## Search meals
+
+Search and retrieve all unique meals across all available menu data.
+
+```
+GET /api/menu/search
+```
+
+### Response
+
+<ResponseField name="meals" type="MealSearchResult[]">
+  Array of unique meals with their appearance dates
+  
+  <Expandable title="MealSearchResult properties">
+    <ResponseField name="name" type="string">
+      Meal name (e.g., "Ekşili Köfte")
+    </ResponseField>
+    
+    <ResponseField name="calories" type="number">
+      Calorie count for the meal
+    </ResponseField>
+    
+    <ResponseField name="category" type="string">
+      Meal category (ana_yemek, yan_yemek, etc.)
+    </ResponseField>
+    
+    <ResponseField name="dates" type="DateInfo[]">
+      Array of dates when this meal appears on the menu
+      
+      <Expandable title="DateInfo properties">
+        <ResponseField name="date" type="string">
+          ISO date format `YYYY-MM-DD`
+        </ResponseField>
+        
+        <ResponseField name="dayName" type="string">
+          Turkish day name
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example request
+
+<CodeGroup>
+
+```bash cURL
+curl https://yemekhane.cu.edu.tr/api/menu/search
+```
+
+```typescript TypeScript
+const response = await fetch(
+  'https://yemekhane.cu.edu.tr/api/menu/search'
+);
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get(
+  'https://yemekhane.cu.edu.tr/api/menu/search'
+)
+data = response.json()
+```
+
+</CodeGroup>
+
+### Example response
+
+```json
+{
+  "meals": [
+    {
+      "name": "Ekşili Köfte",
+      "calories": 294,
+      "category": "ana_yemek",
+      "dates": [
+        {
+          "date": "2025-11-15",
+          "dayName": "Cuma"
+        },
+        {
+          "date": "2025-11-03",
+          "dayName": "Pazartesi"
+        },
+        {
+          "date": "2025-10-22",
+          "dayName": "Salı"
+        }
+      ]
+    },
+    {
+      "name": "Pirinç Pilavı",
+      "calories": 210,
+      "category": "yan_yemek",
+      "dates": [
+        {
+          "date": "2025-11-14",
+          "dayName": "Perşembe"
+        },
+        {
+          "date": "2025-11-03",
+          "dayName": "Pazartesi"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Implementation details
+
+The search endpoint:
+
+1. Scans all `YYYY-MM` directories in `public/data/`
+2. Reads the most recent menu file from each month
+3. Aggregates unique meals across all dates
+4. Deduplicates meals by name (case-insensitive)
+5. Returns dates sorted by most recent first
+
+### Caching
+
+Both endpoints use Next.js ISR with a revalidation period of **1 hour (3600 seconds)**.
+
+<Info>
+  Menu data is cached and automatically revalidated every hour to balance freshness with performance.
+</Info>
+
+### Data source
+
+Menu data is scraped from the official Çukurova University cafeteria website and stored as JSON files in:
+
+```
+public/data/YYYY-MM/menu-YYYYMMDD.json
+```
+
+### TypeScript usage
+
+```typescript
+import type { DayMenu, Meal, MealCategory } from '@/lib/types';
+
+// Fetch menu for a date
+async function getMenuForDate(date: string): Promise<DayMenu | null> {
+  const response = await fetch(`/api/menu/date/${date}`);
+  const data = await response.json();
+  
+  if (!data.found) {
+    return null;
+  }
+  
+  return data.day;
+}
+
+// Search all meals
+async function searchAllMeals() {
+  const response = await fetch('/api/menu/search');
+  const data = await response.json();
+  return data.meals;
+}
+```

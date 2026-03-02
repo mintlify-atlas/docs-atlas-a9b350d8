@@ -1,0 +1,219 @@
+---
+title: Reactions
+description: Like or dislike daily menus and see community feedback
+---
+
+The reactions feature allows users to express their opinion on daily menus by liking or disliking them, creating a community-driven feedback system.
+
+## How reactions work
+
+Each daily menu card has like and dislike buttons in the header:
+
+- **Like button**: Thumbs-up icon with count
+- **Dislike button**: Thumbs-down icon with count
+
+Clicking a button increments the count and registers your reaction for that specific menu date.
+
+## Reacting to menus
+
+To react to a menu:
+
+<Steps>
+  <Step title="Find the menu">
+    Navigate to the day you want to react to
+  </Step>
+  
+  <Step title="Click like or dislike">
+    Tap the thumbs-up (like) or thumbs-down (dislike) button in the menu card header
+  </Step>
+  
+  <Step title="See immediate feedback">
+    The button highlights with color and the count increases by 1
+  </Step>
+</Steps>
+
+Your reaction is stored anonymously using browser localStorage, so you don't need to sign in.
+
+<Note>
+Reactions are anonymous and don't require authentication. Your reaction is tied to your browser, not your account.
+</Note>
+
+## Changing your reaction
+
+You can change or remove your reaction:
+
+**Toggle off**: Click the same button again to remove your reaction. The count decreases by 1.
+
+**Switch reactions**: Click the opposite button to change from like to dislike (or vice versa). The original count decreases and the new count increases.
+
+## Visual states
+
+### Like button states
+
+**Inactive** (not liked):
+- Background: `bg-muted/30`
+- Border: `border-border/40`
+- Text: `text-muted-foreground`
+- Hover: `bg-muted/50`
+
+**Active** (liked):
+- Background: `bg-green-500/10`
+- Border: `border-green-500/50`
+- Text: `text-green-600` (dark mode: `text-green-400`)
+- Icon: Filled thumbs-up
+
+### Dislike button states
+
+**Inactive** (not disliked):
+- Same as inactive like button
+
+**Active** (disliked):
+- Background: `bg-red-500/10`
+- Border: `border-red-500/50`
+- Text: `text-red-600` (dark mode: `text-red-400`)
+- Icon: Filled thumbs-down
+
+## Reaction counts
+
+The counter next to each button shows:
+
+- **Number**: Total reactions of that type for the menu
+- **Visibility**: Only shows when count > 0 (hides when 0)
+- **Animation**: Fades in/out when appearing/disappearing
+- **Font**: Monospace at 10px for visual consistency
+
+Counts are fetched from the server and represent the total across all users.
+
+<Tip>
+Reaction counts help you gauge community sentiment about specific menu days before deciding to eat at the cafeteria.
+</Tip>
+
+## Technical implementation
+
+### Anonymous tracking
+
+Since reactions don't require authentication, they're tracked via:
+
+- **localStorage**: Your reaction is saved locally with key `reaction_[date]`
+- **IP-based rate limiting**: Prevents spam from the same IP address
+- **Database storage**: Aggregated counts are stored per menu date
+
+### Rate limiting
+
+To prevent abuse, the API implements rate limiting:
+
+- **Limit**: X requests per minute per IP address
+- **Response**: `429 Too Many Requests` if exceeded
+- **Error message**: "Çok fazla istek! [X] saniye bekleyin."
+- **Reset timer**: Shows countdown until you can react again
+
+### Optimistic updates
+
+When you click a reaction button:
+
+1. **Instant UI update**: Button state and count change immediately
+2. **localStorage save**: Your reaction is saved locally
+3. **API call**: Request sent to server in background
+4. **Server sync**: Count is updated in database
+5. **Revert on error**: If API fails, UI reverts to previous state
+
+This ensures a snappy user experience even on slow connections.
+
+## Reaction persistence
+
+Your reactions are stored in two places:
+
+**Browser localStorage**:
+- Key: `reaction_[YYYY-MM-DD]`
+- Value: `"like"` or `"dislike"`
+- Purpose: Remember your reaction for each menu date
+- Scope: Per browser (doesn't sync across devices)
+
+**Server database**:
+- Table: `menuReactions`
+- Columns: `menuDate`, `likeCount`, `dislikeCount`, `legacyLikeCount`, `legacyDislikeCount`
+- Purpose: Store aggregated counts for all users
+- Scope: Global (same counts for everyone)
+
+<Warning>
+Clearing your browser data will reset your local reactions, but server counts remain intact.
+</Warning>
+
+## Legacy reaction migration
+
+The database includes legacy count columns:
+
+- `legacyLikeCount`: Imported likes from previous system
+- `legacyDislikeCount`: Imported dislikes from previous system
+
+These are added to current counts when displaying totals:
+
+```sql
+totalLikes = likeCount + COALESCE(legacyLikeCount, 0)
+totalDislikes = dislikeCount + COALESCE(legacyDislikeCount, 0)
+```
+
+This preserves historical reaction data while supporting the new system.
+
+## API endpoints
+
+**GET** `/api/reactions?date=YYYY-MM-DD`
+- Retrieves reaction counts for a specific menu date
+- Returns: `{ likeCount: number, dislikeCount: number }`
+- Combines current and legacy counts
+
+**POST** `/api/reactions`
+- Registers a reaction action
+- Body: `{ menuDate: "YYYY-MM-DD", action: "like" | "dislike" | "removeLike" | "removeDislike" }`
+- Returns: Updated counts
+- Enforces rate limiting
+
+## Animation and feedback
+
+### Button tap animation
+
+When clicking a reaction button:
+
+- Scale down to 0.95 (tap effect)
+- Spring animation with stiffness 500
+- Duration: 150ms
+
+### Count animation
+
+When count changes:
+
+- Fade in/out with opacity transition
+- Scale from 0.5 to 1.0
+- Width animates from 0 to auto
+- Smooth appearance/disappearance
+
+### Debouncing
+
+The app prevents accidental double-clicks:
+
+- Minimum 300ms between reactions
+- Clicks within this window are ignored
+- Prevents rapid toggling that could confuse users
+
+## Use cases
+
+Reactions serve several purposes:
+
+1. **Quick feedback**: Express satisfaction without writing reviews
+2. **Community sentiment**: See if others enjoyed the menu
+3. **Decision making**: Use reaction counts to decide whether to eat at the cafeteria
+4. **Data for administration**: Anonymous feedback helps cafeteria improve
+5. **Social engagement**: Feel connected to other students' experiences
+
+Reactions provide a lightweight, frictionless way to participate in the community.
+
+## Accessibility
+
+Reaction buttons include:
+
+- **Aria labels**: "Beğen" (Like) and "Beğenme" (Dislike)
+- **Visual contrast**: Strong color differentiation when active
+- **Touch targets**: Adequate size for mobile tapping
+- **Keyboard accessible**: Can be activated with Enter/Space when focused
+
+The feature is fully usable with screen readers and keyboard navigation.

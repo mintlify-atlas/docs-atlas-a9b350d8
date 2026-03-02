@@ -1,0 +1,230 @@
+---
+title: Authentication
+description: Google OAuth integration with NextAuth.js
+---
+
+The Çukurova University Cafeteria API uses NextAuth.js v5 with Google OAuth for user authentication.
+
+## Authentication flow
+
+1. User initiates sign-in via Google OAuth
+2. NextAuth.js handles the OAuth flow with Google
+3. User data is stored in the database via Drizzle ORM adapter
+4. JWT session token is issued to the client
+5. Subsequent requests include the session token
+
+## NextAuth.js endpoints
+
+NextAuth.js automatically provides authentication endpoints at:
+
+```
+GET  /api/auth/signin
+POST /api/auth/signin/:provider
+GET  /api/auth/signout
+POST /api/auth/signout
+GET  /api/auth/session
+GET  /api/auth/csrf
+GET  /api/auth/providers
+GET  /api/auth/callback/:provider
+```
+
+## Configuration
+
+The authentication system is configured in `lib/auth.ts`:
+
+```typescript
+import NextAuth from "next-auth";
+import Google from "next-auth/providers/google";
+import { DrizzleAdapter } from "@auth/drizzle-adapter";
+import { db } from "@/lib/db/index";
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  adapter: DrizzleAdapter(db, {
+    usersTable: users,
+    accountsTable: accounts,
+    sessionsTable: sessions,
+    verificationTokensTable: verificationTokens,
+  }),
+  providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+  ],
+  session: {
+    strategy: "jwt",
+  },
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user && token.id) {
+        session.user.id = token.id as string;
+      }
+      return session;
+    },
+  },
+  pages: {
+    signIn: "/",
+  },
+});
+```
+
+## Environment variables
+
+Required environment variables for Google OAuth:
+
+```bash
+GOOGLE_CLIENT_ID=your_client_id_here
+GOOGLE_CLIENT_SECRET=your_client_secret_here
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your_secret_key_here
+```
+
+## Session strategy
+
+The API uses **JWT-based sessions** for optimal performance:
+
+- Sessions are stored as encrypted JWT tokens
+- No database lookup required on every request
+- Tokens include the user ID for database queries
+
+## Getting the current user
+
+In API routes, use the `auth()` helper to get the current session:
+
+```typescript
+import { auth } from "@/lib/auth";
+
+export async function GET() {
+  const session = await auth();
+  
+  if (!session?.user?.id) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+  
+  // Access user ID
+  const userId = session.user.id;
+  
+  // Query user data
+  const userData = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId));
+  
+  return NextResponse.json(userData);
+}
+```
+
+## Feature flag
+
+Authentication can be disabled via the `AUTH_ENABLED` feature flag in `lib/feature-flags.ts`:
+
+```typescript
+export const AUTH_ENABLED = process.env.NEXT_PUBLIC_AUTH_ENABLED === 'true';
+```
+
+When disabled, protected endpoints return:
+
+```json
+{
+  "error": "Auth disabled"
+}
+```
+
+## Database schema
+
+NextAuth.js uses the following tables via Drizzle adapter:
+
+- `users` - User accounts
+- `accounts` - OAuth provider accounts
+- `sessions` - Active sessions (not used with JWT strategy)
+- `verificationTokens` - Email verification tokens
+
+## Sign in example
+
+<CodeGroup>
+
+```typescript Next.js Client
+"use client";
+import { signIn } from "next-auth/react";
+
+export function SignInButton() {
+  return (
+    <button onClick={() => signIn("google")}>
+      Sign in with Google
+    </button>
+  );
+}
+```
+
+```typescript Server Action
+import { signIn } from "@/lib/auth";
+
+export async function handleSignIn() {
+  await signIn("google");
+}
+```
+
+</CodeGroup>
+
+## Sign out example
+
+<CodeGroup>
+
+```typescript Next.js Client
+"use client";
+import { signOut } from "next-auth/react";
+
+export function SignOutButton() {
+  return (
+    <button onClick={() => signOut()}>
+      Sign out
+    </button>
+  );
+}
+```
+
+```typescript Server Action
+import { signOut } from "@/lib/auth";
+
+export async function handleSignOut() {
+  await signOut();
+}
+```
+
+</CodeGroup>
+
+## Session management
+
+Check authentication status on the client:
+
+```typescript
+import { useSession } from "next-auth/react";
+
+export function ProfileComponent() {
+  const { data: session, status } = useSession();
+  
+  if (status === "loading") {
+    return <div>Loading...</div>;
+  }
+  
+  if (status === "unauthenticated") {
+    return <div>Not signed in</div>;
+  }
+  
+  return (
+    <div>
+      <p>Signed in as {session.user.email}</p>
+      <p>User ID: {session.user.id}</p>
+    </div>
+  );
+}
+```

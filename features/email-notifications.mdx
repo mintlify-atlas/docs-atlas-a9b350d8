@@ -1,0 +1,182 @@
+---
+title: Email notifications
+description: Receive email alerts when favorite meals appear on the menu
+---
+
+Email notifications keep users informed when their favorite meals are served, so they never miss a dish they love.
+
+## How it works
+
+The notification system operates automatically:
+
+<Steps>
+  <Step title="Add favorites">
+    Save meals to your favorites list (at least one)
+  </Step>
+  
+  <Step title="Enable notifications">
+    Turn on the email notification toggle in your Favorites page
+  </Step>
+  
+  <Step title="System checks daily">
+    When menus are updated, the system checks if any favorites appear
+  </Step>
+  
+  <Step title="Receive email">
+    You get an email notification for each matching favorite meal
+  </Step>
+</Steps>
+
+Notifications are sent to the email address associated with your Google account.
+
+## Enabling notifications
+
+To opt in to email alerts:
+
+1. Navigate to **Favorilerim** (Favorites page)
+2. Ensure you have at least one favorite meal
+3. Locate the "E-posta Bildirimi" card at the top
+4. Toggle the switch to the **on** position
+5. Wait for the success toast: "E-posta bildirimleri açıldı"
+
+The notification preference is saved immediately and syncs to the server.
+
+<Note>
+The email notification card only appears when you have at least one favorite meal saved.
+</Note>
+
+## Disabling notifications
+
+To stop receiving email alerts:
+
+1. Go to your Favorites page
+2. Toggle the "E-posta Bildirimi" switch to **off**
+3. See the confirmation: "E-posta bildirimleri kapatıldı"
+
+You can re-enable notifications at any time without losing your favorites list.
+
+## Email notification card
+
+The card displays:
+
+```
+┌─────────────────────────────────────────┐
+│ [✉️] E-posta Bildirimi         [Toggle] │
+│                                          │
+│ Favori yemeğiniz menüde olduğunda       │
+│ e-posta (your-email@gmail.com) ile      │
+│ bilgilendirilirsiniz.                   │
+└─────────────────────────────────────────┘
+```
+
+- **Icon**: Mail envelope icon
+- **Title**: "E-posta Bildirimi"
+- **Description**: Explains that you'll be notified when favorites appear, and shows your email address
+- **Toggle**: On/off switch (right-aligned)
+
+## What triggers notifications
+
+Emails are sent when:
+
+- A new daily menu is published
+- The menu contains at least one meal from your favorites
+- You have notifications enabled
+- The menu is for a current or future date
+
+Notifications are **not** sent for:
+
+- Past menus (already served)
+- Meals you've removed from favorites
+- Days when the cafeteria is closed
+- Users who have disabled notifications
+
+## Email content
+
+While the exact email template isn't shown in the source code, typical notification emails would include:
+
+- Subject line indicating a favorite meal is available
+- The meal name
+- The date it will be served
+- Link to view the full menu on the app
+- Unsubscribe or manage preferences option
+
+<Tip>
+Add multiple favorites to increase the likelihood of receiving notifications when meals you enjoy are served.
+</Tip>
+
+## Notification preferences storage
+
+Your email notification preference is stored in the `emailPreferences` database table:
+
+- **User-specific**: Each user has their own preference
+- **Persistent**: Survives sign-out and sign-in
+- **Synced**: Available across all devices
+- **Timestamped**: Records when you last changed the setting
+
+### Database structure
+
+The system tracks:
+
+- `userId`: Your unique user identifier
+- `notifyFavorites`: Boolean (true = notifications on)
+- `createdAt`: When you first set a preference
+- `updatedAt`: Last time you changed the setting
+
+## Backend API endpoints
+
+The notification preference is managed via REST API:
+
+**GET** `/api/email-preferences`
+- Retrieves your current notification setting
+- Returns: `{ notifyFavorites: true/false }`
+
+**POST** `/api/email-preferences`
+- Updates your notification preference
+- Body: `{ notifyFavorites: true/false }`
+- Response: Confirms the new setting
+
+## Error handling
+
+If toggling notifications fails:
+
+- The switch reverts to the previous state
+- An error toast appears: "Bir hata oluştu"
+- You can try again immediately
+
+The app uses optimistic updates:
+1. UI toggles instantly
+2. Request sent to server in background
+3. If server rejects, UI reverts
+
+## Privacy considerations
+
+Email notifications respect user privacy:
+
+- **Opt-in only**: Notifications are disabled by default
+- **Clear disclosure**: The card shows exactly which email will receive alerts
+- **Easy opt-out**: One-click toggle to disable
+- **No spam**: Only sends when favorites actually appear
+- **No sharing**: Your email and preferences are never shared with third parties
+
+## Feature flag behavior
+
+When authentication is disabled via feature flag:
+
+- Email preferences return `notifyFavorites: false`
+- The toggle is non-functional
+- API endpoints return 503 (Service Unavailable)
+- Users must wait for authentication to be re-enabled
+
+This ensures no emails are sent when the auth system is in maintenance mode.
+
+## Use cases
+
+Common scenarios for email notifications:
+
+1. **Busy schedules**: Get alerts even when you forget to check the app
+2. **Popular meals**: Be notified early to arrive before the cafeteria runs out
+3. **Dietary needs**: Receive alerts for vegetarian or allergen-friendly options
+4. **Multiple favorites**: Track several meals without manual checking
+5. **Planning**: Know in advance what days to eat at the cafeteria vs. elsewhere
+
+Email notifications bridge the gap between passive browsing and active meal planning.

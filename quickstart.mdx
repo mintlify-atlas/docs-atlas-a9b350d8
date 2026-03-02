@@ -1,80 +1,247 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get started with Çukurova University Cafeteria in minutes
 ---
 
-## Get started in three steps
+# Quickstart guide
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This guide will help you start using the Çukurova University Cafeteria application to view menus, track calories, and manage your favorite meals.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+The application is available at [https://cukurova.vercel.app](https://cukurova.vercel.app)
+</Note>
+
+## View daily menus
+
+<Steps>
+  <Step title="Visit the application">
+    Navigate to [https://cukurova.vercel.app](https://cukurova.vercel.app) in your browser. You'll see today's cafeteria menu displayed with meal cards.
+  </Step>
+  
+  <Step title="Browse menus by day">
+    Use the mobile bottom navigation bar or desktop controls to navigate between different days. Each menu card shows:
+    - Day name and date
+    - All meals for that day organized by category (main course, soup, side dish, etc.)
+    - Calorie count for each meal
+    - Total daily calories
+  </Step>
+  
+  <Step title="Select a specific date">
+    Click the calendar icon to open the date picker:
+    - On mobile: Opens as a bottom sheet
+    - On desktop: Opens as a dialog
+    
+    Select any date to view that day's menu.
+  </Step>
+</Steps>
+
+## Rate menus
+
+You can like or dislike daily menus without signing in:
+
+1. Scroll to any menu card
+2. Click the thumbs up (👍) or thumbs down (👎) button
+3. Your reaction is recorded immediately
+4. View the total like/dislike count for each day
+
+<Note>
+Rate limiting is applied based on your IP address to prevent abuse.
+</Note>
+
+## Sign in with Google
+
+To access advanced features like favorites and calorie tracking, you need to sign in:
+
+<Steps>
+  <Step title="Click the sign in button">
+    Find the authentication button in the header (top-right on desktop, in the navigation on mobile)
+  </Step>
+  
+  <Step title="Select Google sign in">
+    Click "Sign in with Google" to be redirected to Google's OAuth consent screen
+  </Step>
+  
+  <Step title="Authorize the application">
+    Grant permission for the app to access your Google profile information (name, email, profile picture)
+  </Step>
+  
+  <Step title="Return to the app">
+    After authorization, you'll be redirected back to the application with an active session
+  </Step>
+</Steps>
+
+Once signed in, you'll see your profile picture in the header and gain access to protected features.
+
+## Use favorite meals
+
+<Steps>
+  <Step title="Add meals to favorites">
+    Click the heart icon (❤️) on any meal card to add it to your favorites. The heart will fill to indicate it's saved.
+  </Step>
+  
+  <Step title="View your favorites">
+    Navigate to `/favorilerim` to see all your saved favorite meals in one place
+  </Step>
+  
+  <Step title="Enable email notifications">
+    On the favorites page, toggle the email notification preference:
+    
+    ```typescript
+    // API endpoint: POST /api/email-preferences
+    {
+      "notifyFavorites": true
+    }
+    ```
+    
+    When enabled, you'll receive an email alert when any of your favorite meals appears on the daily menu.
+  </Step>
+  
+  <Step title="Remove favorites">
+    Click the heart icon again on any favorited meal to remove it from your list
+  </Step>
+</Steps>
+
+<Warning>
+Email notifications require valid SMTP configuration. The app uses Google SMTP to send emails.
+</Warning>
+
+## Track your calories
+
+<Steps>
+  <Step title="Mark meals as consumed">
+    Click the "Bunu yedim" (I ate this) button on any meal card to add it to your daily log
+  </Step>
+  
+  <Step title="View daily totals">
+    The application automatically calculates your total calorie intake for the day based on consumed meals
+  </Step>
+  
+  <Step title="Review calorie history">
+    Navigate to `/kalori-takibi` to see all your daily logs:
+    - Date of each log
+    - Total calories consumed
+    - List of meals eaten
+    
+    ```typescript
+    // Daily log structure
+    interface DailyLog {
+      id: number;
+      userId: string;
+      date: string;
+      totalCalories: number;
+      consumedMeals: Array<{
+        mealName: string;
+        calories: number;
+        mealId: string;
+      }>;
+    }
+    ```
+  </Step>
+  
+  <Step title="Remove logged meals">
+    Click the button again to remove a meal from your daily log and update your calorie count
+  </Step>
+</Steps>
+
+## Explore meal details
+
+<Steps>
+  <Step title="Click any meal">
+    Click on a meal card to open the detail modal/drawer
+  </Step>
+  
+  <Step title="View ingredients">
+    The modal displays:
+    - Meal name and calorie count
+    - Complete ingredient list with amounts and units
+    - Meal image (if available)
+    
+    This information is scraped on-demand from the university website.
+  </Step>
+  
+  <Step title="Close the modal">
+    Click outside the modal or press the close button to return to the menu view
+  </Step>
+</Steps>
+
+## Share menus
+
+The application provides powerful sharing capabilities:
+
+<Steps>
+  <Step title="Generate menu image">
+    Click the share button on any menu card to create a visual representation of the menu using `html-to-image`
+  </Step>
+  
+  <Step title="Download or share">
+    Choose to:
+    - Download the generated image
+    - Use the native share API to send it via available apps
+  </Step>
+  
+  <Step title="Create AI prompts">
+    Generate ready-to-use prompts for AI tools:
+    - ChatGPT
+    - Claude
+    - Grok
+    - Perplexity
+    
+    These prompts include the full menu details formatted for optimal AI analysis.
+  </Step>
+</Steps>
+
+## Install as PWA
+
+For the best experience, install the application as a Progressive Web App:
+
+<Steps>
+  <Step title="Look for the install banner">
+    On mobile devices, you'll see a PWA install banner prompting you to add the app to your home screen
+  </Step>
+  
+  <Step title="Accept the installation">
+    Click "Install" or "Add to Home Screen" depending on your device
+  </Step>
+  
+  <Step title="Launch from home screen">
+    Once installed, you can launch the app from your home screen like a native application
+  </Step>
+  
+  <Step title="Enjoy offline support">
+    The PWA includes Service Worker support for offline functionality
+  </Step>
+</Steps>
+
+## Switch themes
+
+The application supports both light and dark themes:
+
+1. Click the theme toggle button in the header (sun/moon icon)
+2. Select your preferred theme:
+   - Light mode
+   - Dark mode
+   - System (follows your device's theme preference)
+
+The theme preference is saved and persists across sessions using `next-themes`.
+
+## API endpoints
+
+For developers interested in the underlying API, here are the main endpoints:
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/reactions?date=YYYY-MM-DD` | GET | Get reaction counts for a specific date | No |
+| `/api/reactions` | POST | Submit a like/dislike reaction | No (rate limited) |
+| `/api/favorites` | GET | Get user's favorite meals | Yes |
+| `/api/favorites` | POST | Toggle a meal in favorites | Yes |
+| `/api/email-preferences` | GET | Get email notification preference | Yes |
+| `/api/email-preferences` | POST | Update email notification preference | Yes |
+| `/api/daily-log?date=YYYY-MM-DD` | GET | Get consumed meals for a date | Yes |
+| `/api/daily-log` | POST | Add/remove a meal from daily log | Yes |
+| `/api/daily-log/all` | GET | Get all daily logs for user | Yes |
+| `/api/meal/:id` | GET | Scrape and return meal details | No |
+| `/api/menu/date/:date` | GET | Get menu for a specific date | No |
+
+<Note>
+All authenticated endpoints require a valid session obtained through Google OAuth.
 </Note>

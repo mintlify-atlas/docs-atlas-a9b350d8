@@ -1,0 +1,472 @@
+---
+title: Hooks
+description: Custom React hooks for state management and utilities
+---
+
+## Overview
+
+The app provides custom hooks for common operations like favorites, calorie tracking, and responsive design.
+
+## State management hooks
+
+### useFavorites
+
+Manage favorite meals with optimistic updates.
+
+**Location**: `hooks/use-favorites.ts`
+
+**API**:
+
+```typescript
+function useFavorites(): {
+  favorites: string[]  // Array of meal names
+  isLoading: boolean
+  toggleFavorite: (mealName: string, mealId?: string) => Promise<boolean>
+  isFavorited: (mealName: string) => boolean
+}
+```
+
+**Usage**:
+
+```tsx
+import { useFavorites } from "@/hooks/use-favorites"
+
+function MyComponent() {
+  const { favorites, toggleFavorite, isFavorited } = useFavorites()
+  
+  return (
+    <button onClick={() => toggleFavorite("Ekşili Köfte", "157")}>
+      {isFavorited("Ekşili Köfte") ? "Unfavorite" : "Favorite"}
+    </button>
+  )
+}
+```
+
+**Features**:
+- Auto-fetches favorites on mount (requires authentication)
+- Optimistic UI updates
+- Automatic rollback on error
+- Returns `false` if not authenticated
+
+<Accordion title="Implementation details">
+  ```typescript
+  // Optimistic update
+  const wasFavorited = favorites.includes(mealName)
+  setFavorites(prev => 
+    wasFavorited 
+      ? prev.filter(f => f !== mealName)  // Remove
+      : [...prev, mealName]               // Add
+  )
+  
+  // API call
+  const res = await fetch("/api/favorites", {
+    method: "POST",
+    body: JSON.stringify({ mealName, mealId })
+  })
+  
+  // Rollback on error
+  if (!res.ok) {
+    setFavorites(prev => 
+      wasFavorited 
+        ? [...prev, mealName] 
+        : prev.filter(f => f !== mealName)
+    )
+  }
+  ```
+</Accordion>
+
+### useDailyLog
+
+Track consumed meals and daily calories.
+
+**Location**: `hooks/use-daily-log.ts`
+
+**API**:
+
+```typescript
+function useDailyLog(date: string): {
+  totalCalories: number
+  consumedMeals: ConsumedMeal[]  // { mealName, calories, mealId }[]
+  isLoading: boolean
+  addMeal: (mealName: string, calories: number, mealId: string) => Promise<boolean>
+  removeMeal: (mealName: string) => Promise<boolean>
+  isConsumed: (mealName: string) => boolean
+}
+```
+
+**Usage**:
+
+```tsx
+import { useDailyLog } from "@/hooks/use-daily-log"
+
+function CalorieTracker() {
+  const { totalCalories, consumedMeals, addMeal, isConsumed } = useDailyLog("2026-02-19")
+  
+  return (
+    <div>
+      <p>Total: {totalCalories} kcal</p>
+      <button 
+        onClick={() => addMeal("Ekşili Köfte", 294, "157")}
+        disabled={isConsumed("Ekşili Köfte")}
+      >
+        {isConsumed("Ekşili Köfte") ? "Added" : "Add meal"}
+      </button>
+    </div>
+  )
+}
+```
+
+**Features**:
+- Fetches log for specific date on mount
+- Optimistic updates for instant feedback
+- Auto-calculates total calories
+- Requires authentication
+
+<Accordion title="Add meal flow">
+  ```typescript
+  const addMeal = async (mealName, calories, mealId) => {
+    // Optimistic update
+    setConsumedMeals(prev => [...prev, { mealName, calories, mealId }])
+    setTotalCalories(prev => prev + calories)
+    
+    // API call
+    const res = await fetch("/api/daily-log", {
+      method: "POST",
+      body: JSON.stringify({ date, mealName, calories, mealId, action: "add" })
+    })
+    
+    // Rollback on error
+    if (!res.ok) {
+      setConsumedMeals(prev => prev.filter(m => m.mealName !== mealName))
+      setTotalCalories(prev => prev - calories)
+      return false
+    }
+    
+    return true
+  }
+  ```
+</Accordion>
+
+### useCalorieGoal
+
+Manage daily calorie goal.
+
+**Location**: `hooks/use-calorie-goal.ts`
+
+**API**:
+
+```typescript
+function useCalorieGoal(): {
+  calorieGoal: number | null
+  isLoading: boolean
+  setCalorieGoal: (goal: number) => Promise<boolean>
+  needsGoal: boolean  // true if user hasn't set a goal yet
+}
+```
+
+**Usage**:
+
+```tsx
+import { useCalorieGoal } from "@/hooks/use-calorie-goal"
+
+function GoalSetter() {
+  const { calorieGoal, setCalorieGoal, needsGoal } = useCalorieGoal()
+  
+  if (needsGoal) {
+    return <p>Please set your daily calorie goal</p>
+  }
+  
+  return <p>Your goal: {calorieGoal} kcal</p>
+}
+```
+
+**Features**:
+- Auto-fetches goal on mount
+- Optimistic update
+- `needsGoal` flag for first-time setup
+
+## Utility hooks
+
+### useIsMobile
+
+Detect mobile breakpoint (< 768px).
+
+**Location**: `hooks/use-mobile.ts`
+
+**API**:
+
+```typescript
+function useIsMobile(): boolean
+```
+
+**Usage**:
+
+```tsx
+import { useIsMobile } from "@/hooks/use-mobile"
+
+function ResponsiveComponent() {
+  const isMobile = useIsMobile()
+  
+  return isMobile ? <MobileView /> : <DesktopView />
+}
+```
+
+**Features**:
+- Listens to window resize
+- Returns `undefined` on initial server render (prevents hydration mismatch)
+- Breakpoint: 768px (matches Tailwind `md`)
+
+<Accordion title="Implementation">
+  ```typescript
+  const MOBILE_BREAKPOINT = 768
+  
+  export function useIsMobile() {
+    const [isMobile, setIsMobile] = useState<boolean | undefined>(undefined)
+    
+    useEffect(() => {
+      const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
+      const onChange = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+      
+      mql.addEventListener('change', onChange)
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+      
+      return () => mql.removeEventListener('change', onChange)
+    }, [])
+    
+    return !!isMobile
+  }
+  ```
+</Accordion>
+
+### useMediaQuery
+
+Generic media query hook.
+
+**Location**: `hooks/use-media-query.ts`
+
+**API**:
+
+```typescript
+function useMediaQuery(query: string): boolean
+```
+
+**Usage**:
+
+```tsx
+import { useMediaQuery } from "@/hooks/use-media-query"
+
+function Component() {
+  const isDesktop = useMediaQuery("(min-width: 1024px)")
+  const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)")
+  const isDark = useMediaQuery("(prefers-color-scheme: dark)")
+  
+  return <div>{isDesktop ? "Desktop" : "Mobile"}</div>
+}
+```
+
+**Features**:
+- Works with any CSS media query
+- Auto-updates on change
+- SSR-safe (returns `false` on server)
+
+### usePwaInstall
+
+Detect PWA installability and trigger install prompt.
+
+**Location**: `hooks/use-pwa-install.ts`
+
+**API**:
+
+```typescript
+function usePwaInstall(): {
+  isInstallable: boolean
+  install: () => Promise<boolean>
+}
+```
+
+**Usage**:
+
+```tsx
+import { usePwaInstall } from "@/hooks/use-pwa-install"
+
+function InstallButton() {
+  const { isInstallable, install } = usePwaInstall()
+  
+  if (!isInstallable) return null
+  
+  return (
+    <button onClick={install}>
+      Install App
+    </button>
+  )
+}
+```
+
+**Features**:
+- Listens for `beforeinstallprompt` event
+- Triggers browser install dialog
+- Auto-hides after install
+- Returns `true` if user accepts, `false` if dismissed
+
+<Accordion title="PWA install flow">
+  ```typescript
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault()
+      setDeferredPrompt(e as BeforeInstallPromptEvent)
+      setIsInstallable(true)
+    }
+    
+    window.addEventListener("beforeinstallprompt", handler)
+    window.addEventListener("appinstalled", () => {
+      setIsInstallable(false)
+      setDeferredPrompt(null)
+    })
+    
+    return () => window.removeEventListener("beforeinstallprompt", handler)
+  }, [])
+  
+  const install = async () => {
+    if (!deferredPrompt) return false
+    
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    
+    if (outcome === "accepted") {
+      setIsInstallable(false)
+      return true
+    }
+    
+    return false
+  }
+  ```
+</Accordion>
+
+### useToast
+
+Display toast notifications.
+
+**Location**: `hooks/use-toast.ts`
+
+**API**:
+
+```typescript
+import { toast } from "sonner"
+
+// Success
+toast.success("Meal added to favorites")
+
+// Error
+toast.error("Failed to save")
+
+// Info
+toast.info("Menu updated")
+
+// With options
+toast.success("Saved", {
+  duration: 3000,
+  description: "Your changes have been saved"
+})
+```
+
+**Features**:
+- Built on `sonner` library
+- Auto-dismiss after duration
+- Stacks multiple toasts
+- Supports descriptions
+
+## Context hooks
+
+### useMenuData
+
+Access global menu context (session, favorites, daily logs).
+
+**Location**: `components/menu-data-provider.tsx`
+
+**API**:
+
+```typescript
+function useMenuData(): {
+  session: Session | null
+  isFavorited: (mealName: string) => boolean
+  toggleFavorite: (mealName: string, mealId?: string) => Promise<boolean>
+  getDailyLog: (date: string) => void
+  isConsumed: (date: string, mealName: string) => boolean
+  addMeal: (date: string, mealName: string, calories: number, mealId: string) => Promise<boolean>
+  removeMeal: (date: string, mealName: string) => Promise<boolean>
+  calorieGoal: number | null
+  needsGoal: boolean
+  setCalorieGoal: (goal: number) => Promise<boolean>
+}
+```
+
+**Usage**:
+
+```tsx
+import { useMenuData } from "@/components/menu-data-provider"
+
+function Component() {
+  const { session, isFavorited } = useMenuData()
+  
+  if (!session) return <p>Not logged in</p>
+  
+  return <p>{isFavorited("Ekşili Köfte") ? "Favorited" : "Not favorited"}</p>
+}
+```
+
+**Features**:
+- Provides session from NextAuth.js
+- Centralized favorites state
+- Multi-date daily log support
+- Calorie goal management
+
+## Hook composition
+
+Combine hooks for complex logic:
+
+```tsx
+function MealCard({ meal, date }: Props) {
+  const { session } = useMenuData()
+  const { isFavorited, toggleFavorite } = useFavorites()
+  const { isConsumed, addMeal, removeMeal } = useDailyLog(date)
+  const isMobile = useIsMobile()
+  
+  const handleFavorite = async () => {
+    if (!session) {
+      toast.error("Please log in")
+      return
+    }
+    
+    const success = await toggleFavorite(meal.name, meal.id)
+    if (success) {
+      toast.success(isFavorited(meal.name) ? "Unfavorited" : "Favorited")
+    }
+  }
+  
+  return (
+    <div>
+      <h3>{meal.name}</h3>
+      <button onClick={handleFavorite}>
+        {isFavorited(meal.name) ? "★" : "☆"}
+      </button>
+      <button onClick={() => addMeal(meal.name, meal.calories, meal.id)}>
+        {isConsumed(meal.name) ? "✓" : "+"}
+      </button>
+    </div>
+  )
+}
+```
+
+## Best practices
+
+1. **Use context hooks for global state** (`useMenuData`)
+2. **Use local hooks for component-specific state** (`useDailyLog` with date)
+3. **Always handle loading and error states**
+4. **Show toast notifications for user feedback**
+5. **Use optimistic updates for instant UX**
+6. **Check authentication before state mutations**
+
+## Next steps
+
+- Learn about [Scraping workflow](/development/scraping)
+- Read [Project structure](/development/project-structure)

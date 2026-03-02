@@ -1,0 +1,256 @@
+---
+title: Sharing
+description: Share menu cards as images and generate AI prompts for menu commentary
+---
+
+The sharing feature allows users to export menu cards as images, share them with friends, and generate AI-powered menu commentary.
+
+## Menu sharing bar
+
+Each menu card includes a sharing section at the bottom:
+
+- **Avatar group**: Shows sample user avatars with a "+7" badge
+- **Call to action**: "Sende bu menüyü arkadaşlarınla hemen paylaş!"
+- **Share button**: Arrow icon to open the sharing dialog
+
+The sharing bar animates smoothly into view when user avatars finish loading.
+
+<Note>
+The avatar group currently displays placeholder images. This can be replaced with real user data showing who has shared the menu.
+</Note>
+
+## Opening the share dialog
+
+To share a menu:
+
+<Steps>
+  <Step title="Locate share section">
+    Scroll to the bottom of any menu card
+  </Step>
+  
+  <Step title="Click share button">
+    Tap the arrow button or click anywhere on the sharing bar text
+  </Step>
+  
+  <Step title="Wait for image generation">
+    The app generates a shareable image (shows "Görsel oluşturuluyor...")
+  </Step>
+  
+  <Step title="Choose sharing method">
+    Use the action buttons to download, copy link, or share
+  </Step>
+</Steps>
+
+## Share dialog
+
+The dialog displays:
+
+- **Title**: "Menüyü Paylaş"
+- **Description**: "Menü görselini indir veya arkadaşlarınla paylaş."
+- **Image preview**: Generated menu card image
+- **Action buttons**: Download, Copy Link, and Share
+
+### Image generation process
+
+When the dialog opens:
+
+1. A loading spinner appears with "Görsel oluşturululuyor..."
+2. The app renders a hidden template with the menu data
+3. The template is converted to a PNG image using html-to-image library
+4. The generated image appears in the preview area
+5. All action buttons become enabled
+
+## Generated image format
+
+The shareable image is a styled card with:
+
+### Header section
+
+- **Title**: "Çukurova Yemekhane'de Bugün"
+- **Date**: Full date (e.g., "Pazartesi, 15 Mart 2025")
+- **Styling**: Dark theme with gradient background
+
+### Meal table
+
+- **Headers**: "Yemek" and "Kalori"
+- **Zebra striping**: Alternating row colors for readability
+- **Meal badges**: "Ana Yemek" and "Seçenek" labels when applicable
+- **Calorie values**: Monospace font for alignment
+
+### Footer
+
+- **Total calories**: With color indicator (green/orange/red dot)
+- **Website URL**: "www.cukurova.app"
+- **Branding**: Subtle attribution
+
+### Technical specs
+
+- **Dimensions**: 420px width, auto height
+- **Quality**: 2x pixel ratio for sharp output
+- **Format**: PNG with transparent background
+- **Font**: Geist Sans (matches app UI)
+- **Color scheme**: Dark theme (`#0a0a0a` background)
+
+<Tip>
+The generated image maintains the app's design language, making it instantly recognizable as from cukurova.app.
+</Tip>
+
+## Sharing actions
+
+### Download image
+
+Clicking the "İndir" button:
+
+1. Creates a download link in memory
+2. Sets filename: `cukurova-menu-[YYYY-MM-DD].png`
+3. Triggers browser download
+4. Saves to your device's default download location
+
+Use this to save menus for later reference or share via other apps.
+
+### Copy link
+
+Clicking "Link Kopyala":
+
+1. Copies the website URL to clipboard: `https://www.cukurova.app`
+2. Shows checkmark icon with "Kopyalandı!" for 2 seconds
+3. Reverts to copy icon after confirmation
+
+**Fallback**: If the Clipboard API is unavailable (some mobile browsers), the app uses a textarea fallback method to ensure copying works.
+
+<Note>
+Currently copies the homepage URL. This could be enhanced to copy a direct link to the specific menu date.
+</Note>
+
+### Native share
+
+Clicking "Paylaş" (share button):
+
+1. Converts the generated image to a File object
+2. Uses the Web Share API (if available)
+3. Opens the native share sheet with:
+   - Title: "Çukurova Yemekhane Menüsü"
+   - Text: "[Date] menüsüne göz at! Menüyü daha detaylı incelemek için cukurova.app ziyaret etmeyi unutma."
+   - Attached image file
+
+**Fallback behavior**:
+
+- If Web Share API unavailable: Falls back to download
+- If file sharing unsupported: Shares text and URL only
+- If user cancels: No error shown (AbortError is ignored)
+
+## AI prompt generation
+
+Each menu card footer includes an "Yapay Zekâya Sor" button that generates AI prompts.
+
+### How it works
+
+<Steps>
+  <Step title="Click AI button">
+    Tap the "Yapay Zekâya Sor" button with magic wand icon
+  </Step>
+  
+  <Step title="Choose AI model">
+    Select from ChatGPT, Claude, Grok, or Perplexity
+  </Step>
+  
+  <Step title="Opens in new tab">
+    The selected AI service opens with a pre-filled prompt
+  </Step>
+  
+  <Step title="Review AI response">
+    Read the AI's commentary on the menu
+  </Step>
+</Steps>
+
+### AI models available
+
+The dropdown menu offers:
+
+- **ChatGPT**: OpenAI's conversational AI
+- **Claude**: Anthropic's AI assistant
+- **Grok**: X (Twitter) AI
+- **Perplexity**: AI-powered search engine
+
+Each option has:
+- Brand icon
+- Model name
+- Chevron animation on hover
+
+### Generated prompt structure
+
+The prompt includes:
+
+```
+Çukurova Üniversitesi yemekhanesi menüsünü en iyi bilen 
+yapay zeka sensin. Aşağıdaki menüyü incele ve şu üç 
+farklı karakter gibi yorumla:
+
+1. Şüpheci Diyetisyen: Menüdeki "gizli tehlikeleri" 
+   veya "sağlıklı yanları" esprili bir dille anlat.
+   
+2. Gym Rat (Sporcu): "Bu menü basmak için yeterli mi?" 
+   sorusuna odaklan. Protein durumunu sorgula.
+   
+3. Vize Haftasındaki Öğrenci: Sadece şuna odaklan: 
+   Bu yemek beni mutlu eder mi, doyurur mu ve uyku 
+   bastırır mı?
+
+İşte Menü Verisi:
+[JSON with full menu data]
+```
+
+This creative prompt generates entertaining and informative menu analysis from three different perspectives.
+
+### URL encoding
+
+The prompt is URL-encoded and passed as query parameters:
+
+- **ChatGPT**: `https://chat.openai.com/?q=[encoded-prompt]`
+- **Claude**: `https://claude.ai/new?q=[encoded-prompt]`
+- **Grok**: `https://x.com/i/grok?text=[encoded-prompt]`
+- **Perplexity**: `https://www.perplexity.ai/search/new?q=[encoded-prompt]`
+
+<Warning>
+The AI models may produce inaccurate or humorous responses. The footer includes a disclaimer: "Menü Asistanı (AI) hata yapabilir."
+</Warning>
+
+## Image preloading
+
+The share bar uses smart image preloading:
+
+1. Avatar images load in background when component mounts
+2. Progress tracked with counter
+3. Share bar animates in once all images load
+4. **Fallback**: If loading takes > 2 seconds, show anyway
+
+This prevents layout shift and ensures smooth animations.
+
+## Accessibility considerations
+
+### Share dialog
+
+- **Semantic HTML**: Proper heading hierarchy
+- **Keyboard navigation**: Tab through buttons
+- **Focus management**: Returns focus when closed
+- **Screen reader labels**: Clear button descriptions
+
+### Share bar
+
+- **Alt text**: Avatar images have descriptive alt text
+- **Clickable area**: Large touch target for mobile
+- **Visual feedback**: Hover states and animations
+- **Hidden template**: Uses `aria-hidden` to avoid announcing offscreen content
+
+## Use cases
+
+Students use sharing for:
+
+1. **Group planning**: Share with friends to coordinate cafeteria visits
+2. **Social media**: Post menu cards to Instagram Stories or WhatsApp
+3. **Family updates**: Send home to show parents what's being served
+4. **Recommendations**: Share specific days with great menus
+5. **Entertainment**: Generate AI commentary for laughs
+6. **Archival**: Download images to keep a record of favorite meals
+
+The sharing feature transforms a personal tool into a social experience.

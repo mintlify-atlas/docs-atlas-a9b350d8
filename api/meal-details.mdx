@@ -1,0 +1,367 @@
+---
+title: Meal details
+description: Get detailed information about specific meals
+---
+
+The meal details endpoint retrieves comprehensive information about a specific meal, including ingredients, images, and nutritional data.
+
+<Info>
+  This endpoint scrapes data in real-time from the university cafeteria website. Results are cached for 24 hours.
+</Info>
+
+## Get meal details
+
+Retrieve detailed information for a specific meal by ID.
+
+```
+GET /api/meal/:id
+```
+
+### Path parameters
+
+<ParamField path="id" type="string" required>
+  Unique meal identifier (e.g., `"157"`)
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="string">
+  The meal ID
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Meal name (e.g., "Yemek #157")
+</ResponseField>
+
+<ResponseField name="calories" type="number">
+  Total calorie count for the meal
+</ResponseField>
+
+<ResponseField name="imageUrl" type="string | null">
+  URL to the meal image, or `null` if no image is available
+</ResponseField>
+
+<ResponseField name="ingredients" type="Ingredient[]">
+  Array of ingredients with amounts and units
+  
+  <Expandable title="Ingredient properties">
+    <ResponseField name="name" type="string">
+      Ingredient name in Turkish (e.g., "DANA ETİ", "SARIMSAK")
+    </ResponseField>
+    
+    <ResponseField name="amount" type="number">
+      Quantity of the ingredient (decimal number)
+    </ResponseField>
+    
+    <ResponseField name="unit" type="string">
+      Unit of measurement (e.g., "GR", "ML", "ADET")
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example request
+
+<CodeGroup>
+
+```bash cURL
+curl https://yemekhane.cu.edu.tr/api/meal/157
+```
+
+```typescript TypeScript
+const response = await fetch(
+  'https://yemekhane.cu.edu.tr/api/meal/157'
+);
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get(
+  'https://yemekhane.cu.edu.tr/api/meal/157'
+)
+data = response.json()
+```
+
+</CodeGroup>
+
+### Example response
+
+```json
+{
+  "id": "157",
+  "name": "Yemek #157",
+  "calories": 294,
+  "imageUrl": "https://yemekhane.cu.edu.tr/yemekler/157.jpg",
+  "ingredients": [
+    {
+      "name": "DANA ETİ",
+      "amount": 150,
+      "unit": "GR"
+    },
+    {
+      "name": "SOĞAN",
+      "amount": 50,
+      "unit": "GR"
+    },
+    {
+      "name": "DOMATES",
+      "amount": 40,
+      "unit": "GR"
+    },
+    {
+      "name": "SARIMSAK",
+      "amount": 0.2,
+      "unit": "GR"
+    },
+    {
+      "name": "SIVIYAĞ",
+      "amount": 15,
+      "unit": "ML"
+    },
+    {
+      "name": "TUZ",
+      "amount": 2,
+      "unit": "GR"
+    }
+  ]
+}
+```
+
+### No image response
+
+If the meal has no associated image:
+
+```json
+{
+  "id": "45",
+  "name": "Yemek #45",
+  "calories": 120,
+  "imageUrl": null,
+  "ingredients": [
+    {
+      "name": "MERCİMEK",
+      "amount": 80,
+      "unit": "GR"
+    },
+    {
+      "name": "SU",
+      "amount": 200,
+      "unit": "ML"
+    }
+  ]
+}
+```
+
+### Error responses
+
+<CodeGroup>
+
+```json 500 Internal Server Error
+{
+  "error": "Failed to fetch meal detail"
+}
+```
+
+</CodeGroup>
+
+---
+
+## Implementation details
+
+### Data source
+
+Meal details are scraped in real-time from:
+
+```
+https://yemekhane.cu.edu.tr/yemek-goster.asp?id={id}
+```
+
+The endpoint:
+
+1. Fetches the HTML page for the meal
+2. Decodes Turkish characters (Windows-1254 encoding)
+3. Parses the page with Cheerio
+4. Extracts calories, image URL, and ingredients
+5. Returns structured JSON data
+
+### Caching
+
+Results are cached using Next.js ISR with a revalidation period of **24 hours (86400 seconds)**.
+
+<Tip>
+  Meal details rarely change, so aggressive caching improves performance and reduces load on the university website.
+</Tip>
+
+### Character encoding
+
+The university website uses Windows-1254 encoding for Turkish characters. The API automatically converts to UTF-8:
+
+```typescript
+import iconv from 'iconv-lite';
+
+const buffer = await response.arrayBuffer();
+const html = iconv.decode(Buffer.from(buffer), 'windows-1254');
+```
+
+### Ingredient parsing
+
+Ingredients are extracted from table rows with format:
+
+```
+INGREDIENT_NAME AMOUNT UNIT
+```
+
+Examples:
+- `DANA ETİ 150 GR`
+- `SARIMSAK 0,2 GR` (comma converted to decimal point)
+- `SU 200 ML`
+
+### Image URLs
+
+Images are hosted on the university website:
+
+```
+https://yemekhane.cu.edu.tr/yemekler/{id}.jpg
+```
+
+If no image exists, `imageUrl` is `null`.
+
+### TypeScript types
+
+Use the `MealDetail` and `Ingredient` interfaces from `lib/types.ts`:
+
+```typescript
+export interface MealDetail {
+  id: string;
+  name: string;
+  calories: number;
+  imageUrl: string | null;
+  ingredients: Ingredient[];
+}
+
+export interface Ingredient {
+  name: string;
+  amount: number;
+  unit: string;
+}
+```
+
+### TypeScript usage
+
+```typescript
+import type { MealDetail, Ingredient } from '@/lib/types';
+
+// Fetch meal details
+async function getMealDetails(mealId: string): Promise<MealDetail> {
+  const response = await fetch(`/api/meal/${mealId}`);
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch meal details');
+  }
+  
+  return response.json();
+}
+
+// Calculate total protein (example)
+function estimateProtein(ingredients: Ingredient[]): number {
+  let protein = 0;
+  
+  for (const ingredient of ingredients) {
+    if (ingredient.name.includes('ET') || ingredient.name.includes('TAVUK')) {
+      // Rough estimate: meat is ~20% protein
+      protein += ingredient.amount * 0.2;
+    }
+  }
+  
+  return Math.round(protein);
+}
+
+// Display meal info
+async function displayMeal(mealId: string) {
+  const meal = await getMealDetails(mealId);
+  
+  console.log(`${meal.name} - ${meal.calories} cal`);
+  console.log('Ingredients:');
+  
+  for (const ing of meal.ingredients) {
+    console.log(`  - ${ing.name}: ${ing.amount} ${ing.unit}`);
+  }
+  
+  if (meal.imageUrl) {
+    console.log(`Image: ${meal.imageUrl}`);
+  }
+}
+```
+
+### React component example
+
+```tsx
+import { useState, useEffect } from 'react';
+import type { MealDetail } from '@/lib/types';
+
+interface MealDetailCardProps {
+  mealId: string;
+}
+
+export function MealDetailCard({ mealId }: MealDetailCardProps) {
+  const [meal, setMeal] = useState<MealDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/meal/${mealId}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to load meal');
+        return res.json();
+      })
+      .then(data => {
+        setMeal(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, [mealId]);
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+  if (!meal) return null;
+
+  return (
+    <div className="meal-detail">
+      <h2>{meal.name}</h2>
+      <p>{meal.calories} calories</p>
+      
+      {meal.imageUrl && (
+        <img src={meal.imageUrl} alt={meal.name} />
+      )}
+      
+      <h3>Ingredients</h3>
+      <ul>
+        {meal.ingredients.map((ing, i) => (
+          <li key={i}>
+            {ing.name}: {ing.amount} {ing.unit}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+### Error handling
+
+The endpoint returns a 500 error if:
+
+- The university website is unavailable
+- The meal ID doesn't exist
+- The HTML structure has changed
+- Network errors occur
+
+Always implement proper error handling in your client code.
+
+### Rate limiting
+
+This endpoint is not rate-limited, but excessive requests may be blocked by the university website. The 24-hour cache minimizes external requests.

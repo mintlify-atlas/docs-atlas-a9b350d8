@@ -1,0 +1,212 @@
+---
+title: Architecture overview
+description: High-level technical architecture of the Çukurova University Cafeteria application
+---
+
+The Çukurova University Cafeteria application is built on a modern web stack with an ETL (Extract-Transform-Load) pipeline that automatically scrapes, processes, and serves university menu data.
+
+## Core architecture
+
+The application follows a **data-driven architecture** with clear separation between data collection, storage, and presentation:
+
+```
+┌─────────────────┐
+│  University     │
+│  Website        │
+│  (ASP Legacy)   │
+└────────┬────────┘
+         │ Scrape (Daily)
+         ▼
+┌─────────────────┐      ┌──────────────┐
+│  ETL Pipeline   │─────▶│ JSON Files   │
+│  (Node.js)      │      │ public/data/ │
+└─────────────────┘      └──────┬───────┘
+                                │
+                                │ Read
+                                ▼
+                         ┌──────────────┐
+                         │  Next.js App │
+                         │  (SSR + RSC) │
+                         └──────┬───────┘
+                                │
+                                ▼
+                         ┌──────────────┐
+                         │  PostgreSQL  │
+                         │  (NeonDB)    │
+                         └──────────────┘
+```
+
+## Technology stack
+
+### Frontend
+
+- **Framework**: Next.js 16 (App Router, React Server Components)
+- **UI Library**: React 19
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS 4
+- **Components**: shadcn/ui + Radix UI
+- **Icons**: Lucide React
+- **Animations**: Framer Motion
+- **PWA**: @ducanh2912/next-pwa
+
+### Backend
+
+- **Runtime**: Node.js
+- **Database**: NeonDB (Serverless PostgreSQL)
+- **ORM**: Drizzle ORM + Drizzle Kit
+- **Authentication**: NextAuth.js v5 (Auth.js) with Google OAuth
+- **Email**: nodemailer (Google SMTP)
+
+### Data pipeline
+
+- **Scraping**: cheerio (HTML parsing)
+- **Encoding**: iconv-lite (Windows-1254 to UTF-8 conversion)
+- **Storage**: Static JSON files in `public/data/`
+- **Automation**: GitHub Actions (daily at 07:00 UTC+3)
+
+### Additional tools
+
+- **Image generation**: html-to-image
+- **Calendar**: react-day-picker, date-fns
+- **Forms**: react-hook-form, zod
+- **Notifications**: sonner
+- **Analytics**: Vercel Analytics, Google Analytics
+- **Package manager**: pnpm
+
+## ETL pipeline flow
+
+The application uses an **Extract-Transform-Load** pattern to manage menu data:
+
+### 1. Extract (Scraping)
+
+A Node.js script (`scripts/scrape-menu.ts`) runs daily via GitHub Actions:
+
+- Fetches the university's legacy ASP website
+- Retrieves raw HTML containing the monthly menu
+- Handles Windows-1254 Turkish character encoding
+
+### 2. Transform (Parsing)
+
+The raw HTML is processed using cheerio:
+
+- Converts encoding from Windows-1254 to UTF-8
+- Extracts menu cards for each day
+- Parses meal names, IDs, and calorie information
+- Structures data into typed TypeScript objects
+
+### 3. Load (Storage)
+
+Processed data is saved to the file system:
+
+- JSON files stored in `public/data/<YYYY-MM>/` directories
+- File naming convention: `menu-YYYYMMDD.json`
+- Maximum 5 files per month (old files auto-deleted)
+- Static files served directly by Next.js
+
+## Application architecture
+
+### Server-side rendering (SSR)
+
+Next.js Server Components handle initial data loading:
+
+- Menu data read from JSON files at request time
+- No client-side data fetching for initial render
+- Optimal performance and SEO
+
+### Client-side features
+
+Interactive features powered by React:
+
+- Like/dislike reactions (IP-based rate limiting)
+- Favorites management (requires authentication)
+- Calorie tracking (requires authentication)
+- Date navigation and calendar selection
+- Menu sharing and AI prompt generation
+
+### API routes
+
+Next.js API routes handle dynamic operations:
+
+- `/api/reactions` - Like/dislike counters
+- `/api/favorites` - User favorites management
+- `/api/daily-log` - Calorie tracking
+- `/api/meal/[id]` - Meal detail scraping
+- `/api/email-preferences` - Notification settings
+
+See the [API documentation](/api-reference) for complete route specifications.
+
+## Database architecture
+
+PostgreSQL database (NeonDB) stores user data:
+
+- **Authentication**: NextAuth.js tables (users, accounts, sessions)
+- **Reactions**: Anonymous like/dislike counters per menu date
+- **Favorites**: User-saved meals with notification support
+- **Daily logs**: Calorie tracking records
+- **Preferences**: Email notification settings
+
+See [Database schema](/architecture/database-schema) for detailed table definitions.
+
+## Data flow example
+
+### User viewing today's menu
+
+1. User visits homepage (`/`)
+2. Server Component reads today's JSON file from `public/data/2026-02/menu-20260302.json`
+3. Menu data passed to Client Component for rendering
+4. Client Component fetches reactions count from `/api/reactions?date=2026-03-02`
+5. If authenticated, fetches user favorites from `/api/favorites`
+6. Hydrates interactive UI (like buttons, favorites, etc.)
+
+### Daily scraping process
+
+1. GitHub Actions triggers at 07:00 UTC+3
+2. `npm run scrape` executes `scripts/scrape-menu.ts`
+3. Script fetches university website HTML
+4. Parses and transforms data into JSON
+5. Saves to `public/data/<YYYY-MM>/menu-<YYYYMMDD>.json`
+6. Git commits and pushes changes to repository
+7. Vercel detects commit and auto-deploys
+8. `scripts/send-favorite-notifications.ts` runs
+9. Checks user favorites against today's menu
+10. Sends email notifications via Google SMTP
+
+## Deployment architecture
+
+- **Hosting**: Vercel (auto-deploy from GitHub)
+- **Database**: NeonDB (serverless PostgreSQL)
+- **Static assets**: Vercel CDN
+- **Automation**: GitHub Actions
+- **Email**: Google SMTP (App Password)
+
+## Progressive web app (PWA)
+
+The application is installable as a PWA:
+
+- Service Worker for offline support
+- Manifest file for app metadata
+- Install prompts on mobile devices
+- Standalone app experience
+
+## Security considerations
+
+- **Authentication**: JWT-based sessions via NextAuth.js
+- **Rate limiting**: IP-based throttling for reactions
+- **OAuth**: Google authentication only (no passwords stored)
+- **Environment variables**: Secrets stored in Vercel and GitHub
+- **Middleware**: Protected routes for authenticated features
+
+## Performance optimizations
+
+- **Static JSON files**: No database queries for menu data
+- **Server Components**: Reduced JavaScript bundle size
+- **Incremental Static Regeneration**: Fast page loads
+- **CDN caching**: Static assets served from edge
+- **Lazy loading**: Components loaded on demand
+- **Image optimization**: Next.js Image component
+
+## Monitoring and analytics
+
+- **Vercel Analytics**: Performance and Web Vitals tracking
+- **Google Analytics**: User behavior tracking
+- **GitHub Actions logs**: Scraping success/failure monitoring
